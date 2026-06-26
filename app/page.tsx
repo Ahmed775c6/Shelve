@@ -20,7 +20,8 @@ export default function OverviewPage() {
 
   useEffect(() => {
     if (status === 'unauthenticated') {
-      redirect('/auth/signin');
+      console.log('tet')
+            redirect('/auth/signin');
     }
 
     const fetchBooks = async () => {
