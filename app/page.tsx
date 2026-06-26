@@ -115,7 +115,7 @@ export default function OverviewPage() {
           </div>
           {readingBooks.map((book: IBook) => (
             <div key={book._id} className="bg-[#1a1916] border border-[rgba(255,255,255,0.07)] rounded-lg p-5.5 flex gap-5 items-center mb-4 relative overflow-hidden">
-              <div className="w-16 h-[94px] flex-shrink-0 relative rounded-[3px_6px_6px_3px]">
+              <div className="w-16 h-23.5 flex-shrink-0 relative rounded-[3px_6px_6px_3px]">
                 <div className={`w-full h-full rounded-[3px_6px_6px_3px] ${book.coverColor}`}></div>
               </div>
               <div className="flex-1">
