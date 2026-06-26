@@ -3,6 +3,9 @@ Shelve — Your Personal Library
 A modern, full-featured personal library management system with AI-powered recommendations and a rich reading experience.
 
 https://via.placeholder.com/1200x600/0f0e0c/c9a96e?text=Shelve+%E2%80%94+Your+Personal+Library
+📁 Project Repository
+
+GitHub: https://github.com/Ahmed775c6/Shelve.git
 ✨ Features
 📚 Library Management
 
@@ -125,8 +128,8 @@ Prerequisites
 Step 1: Clone the repository
 bash
 
-git clone https://github.com/yourusername/shelve.git
-cd shelve
+git clone https://github.com/Ahmed775c6/Shelve.git
+cd Shelve
 
 Step 2: Install dependencies
 bash
@@ -169,7 +172,7 @@ Navigate to http://localhost:3000
 📁 Project Structure
 text
 
-shelve/
+Shelve/
 ├── app/
 │   ├── api/                    # API routes
 │   │   ├── ai/                 # AI endpoints
@@ -322,17 +325,15 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 📧 Contact
 
-Your Name - @yourtwitter - email@example.com
-
-Project Link: https://github.com/yourusername/shelve
+Project Repository: https://github.com/Ahmed775c6/Shelve.git
 🚀 Quick Start for Developers
 
 Want to get started quickly? Run these commands:
 bash
 
 # Clone and install
-git clone https://github.com/yourusername/shelve.git
-cd shelve
+git clone https://github.com/Ahmed775c6/Shelve.git
+cd Shelve
 npm install
 
 # Set up environment
@@ -363,3 +364,16 @@ npm start
     Reading challenges and goals
 
     Book discussion forums
+
+    Offline reading mode
+
+    Mobile app (React Native)
+
+    Audiobook support
+
+    Reading statistics dashboard
+
+    Book recommendations from other users
+
+    Integration with Goodreads
+
