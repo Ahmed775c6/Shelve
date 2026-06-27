@@ -77,9 +77,17 @@ export default function ArchivePage() {
               key={book._id}
               className="bg-[#1a1916] border border-[rgba(255,255,255,0.07)] rounded-lg p-4 flex items-center gap-4 hover:border-[rgba(255,255,255,0.12)] transition-colors cursor-pointer"
             >
-              <div
-                className={`w-9 h-[52px] rounded-[2px_4px_4px_2px] flex-shrink-0 ${book.coverColor}`}
-              ></div>
+              <div className="w-9 h-[52px] rounded-[2px_4px_4px_2px] flex-shrink-0 overflow-hidden">
+                {book.coverImage ? (
+                  <img 
+                    src={book.coverImage} 
+                    alt={book.title}
+                    className="w-full h-full object-cover rounded-[2px_4px_4px_2px]"
+                  />
+                ) : (
+                  <div className={`w-full h-full ${book.coverColor}`}></div>
+                )}
+              </div>
               <div className="flex-1">
                 <div className="text-sm font-medium text-[#f0ede8]">{book.title}</div>
                 <div className="text-xs text-[#9b9890]">

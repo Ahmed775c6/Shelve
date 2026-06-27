@@ -29,6 +29,7 @@ export default function BookCard({ book, onClick, onAction }: BookCardProps) {
         title={book.title}
         author={book.author}
         coverColor={book.coverColor}
+        coverImage={book.coverImage}
         progress={progress}
         onClick={onClick}
       />

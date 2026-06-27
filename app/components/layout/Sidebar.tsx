@@ -2,14 +2,16 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { 
   LayoutGrid, Library, BookOpen, Archive, 
   PenTool, UploadCloud, Sparkles, MessageSquare,
-  Settings
+  Settings, User
 } from 'lucide-react';
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { data: session } = useSession();
 
   const navItems = [
     { href: '/', icon: LayoutGrid, label: 'Overview' },
@@ -22,8 +24,10 @@ export default function Sidebar() {
     { href: '/ask', icon: MessageSquare, label: 'Ask about a book' },
   ];
 
+  const user = session?.user;
+
   return (
-    <aside className="w-[240px] bg-[#1a1916] border-r border-[rgba(255,255,255,0.07)] fixed left-0 top-0 bottom-0 z-100">
+    <aside className="w-[240px] bg-[#1a1916] border-r border-[rgba(255,255,255,0.07)] fixed left-0 top-0 bottom-0 z-100 flex flex-col">
       <div className="p-6 border-b border-[rgba(255,255,255,0.07)]">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-[#c9a96e] rounded-lg flex items-center justify-center text-sm">
@@ -36,7 +40,7 @@ export default function Sidebar() {
         </div>
       </div>
 
-      <nav className="py-4">
+      <nav className="flex-1 py-4 overflow-y-auto">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           return (
@@ -61,13 +65,35 @@ export default function Sidebar() {
         })}
       </nav>
 
+      {/* User Profile Footer */}
       <div className="mt-auto p-4 border-t border-[rgba(255,255,255,0.07)]">
         <Link
           href="/settings"
-          className="flex items-center gap-3 px-6 py-2 text-[#9b9890] hover:text-[#f0ede8] transition-colors"
+          className="flex items-center gap-3 px-2 py-2.5 rounded-lg hover:bg-[#222119] transition-colors group"
         >
-          <Settings size={16} />
-          <span className="text-sm">Settings</span>
+          <div className="relative flex-shrink-0">
+            {user?.image ? (
+              <img 
+                src={user.image} 
+                alt={user.name || 'User'} 
+                className="w-10 h-10 rounded-full object-cover border border-[rgba(255,255,255,0.07)]"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#1e3a5f] to-[#2d5a8e] flex items-center justify-center border border-[rgba(255,255,255,0.07)]">
+                <User size={18} className="text-white/60" />
+              </div>
+            )}
+            <div className="absolute bottom-0 right-0 w-3 h-3 bg-[#4a9e6b] rounded-full border-2 border-[#1a1916]"></div>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium text-[#f0ede8] truncate group-hover:text-[#c9a96e] transition-colors">
+              {user?.name || 'User'}
+            </div>
+            <div className="text-xs text-[#5c5a56] truncate">
+              {user?.email || ''}
+            </div>
+          </div>
+          <Settings size={14} className="text-[#5c5a56] group-hover:text-[#f0ede8] transition-colors shrink-0" />
         </Link>
       </div>
     </aside>

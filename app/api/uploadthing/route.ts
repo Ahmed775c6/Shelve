@@ -8,12 +8,12 @@ export async function POST(req: NextRequest) {
   try {
     const form = await req.formData();
     const file = form.get('file') as unknown as File | undefined;
+    const type = form.get('type') as string | undefined;
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
-    // Some runtimes provide name on the File object, otherwise fallback
     // Read file contents as ArrayBuffer then to Buffer
     const arrayBuffer = await (file as any).arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);

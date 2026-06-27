@@ -302,7 +302,17 @@ export default function ReadPage() {
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`w-10 h-[58px] rounded-[2px_4px_4px_2px] flex-shrink-0 ${book.coverColor}`}></div>
+                    <div className="w-10 h-[58px] rounded-[2px_4px_4px_2px] flex-shrink-0 overflow-hidden">
+                      {book.coverImage ? (
+                        <img 
+                          src={book.coverImage} 
+                          alt={book.title}
+                          className="w-full h-full object-cover rounded-[2px_4px_4px_2px]"
+                        />
+                      ) : (
+                        <div className={`w-full h-full ${book.coverColor}`}></div>
+                      )}
+                    </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium text-[#f0ede8] truncate">
                         {book.title}
