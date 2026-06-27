@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { 
   LayoutGrid, Library, BookOpen, Archive, 
-  PenTool, UploadCloud, Sparkles, MessageSquare,
+  PenTool, UploadCloud, Sparkles, MessageSquare,BarChart3,
   Settings, User
 } from 'lucide-react';
 
@@ -18,6 +18,8 @@ export default function Sidebar() {
     { href: '/library', icon: Library, label: 'My library', badge: '24' },
     { href: '/read', icon: BookOpen, label: 'Reading now', badge: '3' },
     { href: '/archive', icon: Archive, label: 'Archived', badge: '11' },
+    { href: '/analytics', icon: BarChart3, label: 'Analytics' },
+
     { href: '/write', icon: PenTool, label: 'My writings' },
     { href: '/upload', icon: UploadCloud, label: 'Upload book' },
     { href: '/ai', icon: Sparkles, label: 'Recommendations' },

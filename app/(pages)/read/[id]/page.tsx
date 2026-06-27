@@ -657,19 +657,7 @@ export default function ReadBookPage() {
             </button>
           </div>
 
-          {/* Book Cover Display */}
-          {book.coverImage && (
-            <div className="rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[#1a1916] p-6">
-              <h2 className="text-sm uppercase tracking-[0.2em] text-[#5c5a56] mb-4">Book Cover</h2>
-              <div className="flex justify-center">
-                <img 
-                  src={book.coverImage} 
-                  alt={book.title} 
-                  className="max-h-[400px] object-contain rounded-lg shadow-lg"
-                />
-              </div>
-            </div>
-          )}
+       
 
           {/* Status Card */}
           <div className="rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[#1a1916] p-6">
@@ -966,6 +954,20 @@ export default function ReadBookPage() {
               )}
             </div>
           </div>
+
+             {/* Book Cover Display */}
+          {book.coverImage && (
+            <div className="rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[#1a1916] p-6">
+              <h2 className="text-sm uppercase tracking-[0.2em] text-[#5c5a56] mb-4">Book Cover</h2>
+              <div className="flex justify-center">
+                <img 
+                  src={book.coverImage} 
+                  alt={book.title} 
+                  className="max-h-100 object-contain rounded-lg shadow-lg"
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

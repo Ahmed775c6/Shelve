@@ -528,3 +528,47 @@ body {
   color: #c9a96e;
   background: rgba(201,169,110,0.1);
 }
+/* 3D Book Styles */
+.preserve-3d {
+  transform-style: preserve-3d;
+}
+
+.perspective-\[800px\] {
+  perspective: 800px;
+}
+
+/* Book Hover Effects */
+.group:hover .group-hover\:rotate-y-\[-5deg\] {
+  transform: rotateY(-5deg);
+}
+
+/* Book Spine Animation */
+@keyframes spineGlow {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.6; }
+}
+
+.book-spine-glow {
+  animation: spineGlow 3s ease-in-out infinite;
+}
+
+/* Page Edge Texture */
+.page-edges {
+  background: repeating-linear-gradient(
+    90deg,
+    #e8e0d4 0px,
+    #e8e0d4 1px,
+    #d4cbbd 1px,
+    #d4cbbd 2px
+  );
+}
+
+/* Cover Reflection */
+.cover-reflection {
+  background: linear-gradient(
+    135deg,
+    rgba(255,255,255,0.15) 0%,
+    rgba(255,255,255,0) 50%,
+    rgba(255,255,255,0.05) 100%
+  );
+}

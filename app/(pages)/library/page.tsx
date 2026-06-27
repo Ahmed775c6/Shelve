@@ -75,7 +75,7 @@ export default function LibraryPage() {
       </div>
 
       <div className="flex items-center gap-2.5 mb-6 flex-wrap">
-        <div className="flex-1 min-w-[200px]">
+        <div className="flex-1 min-w-50">
           <div className="flex items-center gap-2 bg-[#1a1916] border border-[rgba(255,255,255,0.07)] rounded-lg px-3 py-2.25 text-[#9b9890] text-sm">
             <input
               type="text"
