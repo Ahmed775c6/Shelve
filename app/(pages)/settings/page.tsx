@@ -230,7 +230,7 @@ export default function SettingsPage() {
 
   if (status === 'loading' || loading) {
     return (
-      <div className="p-8 flex items-center justify-center min-h-[400px]">
+      <div className="page-shell flex items-center justify-center min-h-[400px]">
         <div className="text-[#9b9890]">Loading settings...</div>
       </div>
     );
@@ -238,7 +238,7 @@ export default function SettingsPage() {
 
   if (!userData) {
     return (
-      <div className="p-8 text-center text-[#9b9890]">
+      <div className="page-shell text-center text-[#9b9890]">
         <p>Failed to load user data</p>
       </div>
     );
@@ -248,7 +248,7 @@ export default function SettingsPage() {
   const isGithubUser = userData.provider === 'github';
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
+    <div className="page-shell max-w-4xl mx-auto">
       <div className="mb-8">
         <h1 className="font-serif text-3xl text-[#f0ede8] mb-2">Settings</h1>
         <p className="text-sm text-[#9b9890]">Manage your account settings and preferences</p>
@@ -279,7 +279,7 @@ export default function SettingsPage() {
               <label className="block text-[11px] text-[#5c5a56] uppercase tracking-wider mb-1.5">
                 Profile Picture
               </label>
-              <div className="flex items-center gap-4">
+              <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
                 <div className="relative w-20 h-20 rounded-full overflow-hidden bg-[#0f0e0c] border border-[rgba(255,255,255,0.07)]">
                   {avatarPreview ? (
                     <img 
@@ -362,7 +362,7 @@ export default function SettingsPage() {
 
             {/* Account Info */}
             <div className="pt-4 border-t border-[rgba(255,255,255,0.07)]">
-              <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
                 <div>
                   <span className="text-[#5c5a56]">Member since</span>
                   <p className="text-[#f0ede8]">{formatDate(userData.createdAt)}</p>

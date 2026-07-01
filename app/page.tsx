@@ -58,7 +58,7 @@ export default function OverviewPage() {
 
   if (status === 'loading' || loading) {
     return (
-      <div className="p-8 flex items-center justify-center min-h-100">
+      <div className="page-shell flex items-center justify-center min-h-100">
         <div className="text-[#9b9890]">Loading your library...</div>
       </div>
     );
@@ -100,7 +100,7 @@ export default function OverviewPage() {
   const recentBooks = Array.isArray(books) ? books.slice(0, 6) : [];
 
   return (
-    <div className="p-8">
+    <div className="page-shell">
       <div className="mb-7">
         <h1 className="font-serif text-2xl text-[#f0ede8] mb-1">
           Good evening, Reader 🌙
@@ -111,7 +111,7 @@ export default function OverviewPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-3 mb-8">
+      <div className="grid grid-cols-1 gap-3 mb-8 sm:grid-cols-2 xl:grid-cols-4">
         <div className="bg-[#1a1916] border border-[rgba(255,255,255,0.07)] rounded-lg p-4.5">
           <div className="text-[11px] text-[#5c5a56] uppercase tracking-wider mb-1.5">Total books</div>
           <div className="text-2xl font-serif">{stats.total}</div>
@@ -145,7 +145,8 @@ export default function OverviewPage() {
             <h2 className="text-sm font-medium text-[#9b9890] uppercase tracking-wider">Currently reading</h2>
             <div className="flex-1 h-px bg-[rgba(255,255,255,0.07)]"></div>
           </div>
-          {readingBooks.map((book: IBook) => (
+       <div className='w-full grid grid-cols-1 gap-3 p-2 xl:grid-cols-2'>
+           {readingBooks.map((book: IBook) => (
             <div key={book?._id as any} className="bg-[#1a1916] border border-[rgba(255,255,255,0.07)] rounded-lg p-5.5 flex gap-5 items-center mb-4 relative overflow-hidden">
               <div className="w-16 h-23.5 shrink-0 relative rounded-[3px_6px_6px_3px] overflow-hidden">
                 {book.coverImage ? (
@@ -185,6 +186,7 @@ export default function OverviewPage() {
               </div>
             </div>
           ))}
+       </div>
         </div>
       )}
 
@@ -212,7 +214,7 @@ export default function OverviewPage() {
           <div className="text-sm font-medium text-[#c9a96e]">Recommended based on your reading history</div>
           <div className="text-xs text-[#5c5a56] ml-auto">Updated today</div>
         </div>
-        <div className="grid grid-cols-3 gap-2.5">
+        <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 xl:grid-cols-3">
           {[
             { title: 'The Stormlight Archive', author: 'Brandon Sanderson', reason: 'You loved Dune\'s world-building' },
             { title: 'Thinking, Fast and Slow', author: 'Daniel Kahneman', reason: 'Pairs well with Atomic Habits' },

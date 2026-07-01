@@ -36,7 +36,7 @@ export default function ArchivePage() {
 
   if (status === 'loading' || loading) {
     return (
-      <div className="p-8 flex items-center justify-center min-h-[400px]">
+      <div className="page-shell flex items-center justify-center min-h-100">
         <div className="text-[#9b9890]">Loading your archive...</div>
       </div>
     );
@@ -62,7 +62,7 @@ export default function ArchivePage() {
   };
 
   return (
-    <div className="p-8">
+    <div className="page-shell">
       <div className="mb-7">
         <h1 className="font-serif text-2xl text-[#f0ede8] mb-1">Archived books</h1>
         <p className="text-sm text-[#9b9890]">
@@ -73,11 +73,11 @@ export default function ArchivePage() {
       <div className="space-y-2.5">
         {archivedBooks.length > 0 ? (
           archivedBooks.map((book : any) => (
-            <div
+            <div onClick={()=> window.location.href = `/read/${book._id}`}
               key={book._id}
               className="bg-[#1a1916] border border-[rgba(255,255,255,0.07)] rounded-lg p-4 flex items-center gap-4 hover:border-[rgba(255,255,255,0.12)] transition-colors cursor-pointer"
             >
-              <div className="w-9 h-[52px] rounded-[2px_4px_4px_2px] flex-shrink-0 overflow-hidden">
+              <div className="w-9 h-13 rounded-[2px_4px_4px_2px] shrink-0 overflow-hidden">
                 {book.coverImage ? (
                   <img 
                     src={book.coverImage} 

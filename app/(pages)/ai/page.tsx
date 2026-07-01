@@ -53,7 +53,7 @@ export default function AskPage() {
 
   if (status === 'loading') {
     return (
-      <div className="p-8 flex items-center justify-center min-h-[400px]">
+      <div className="page-shell flex items-center justify-center min-h-100">
         <div className="text-[#9b9890]">Loading chat...</div>
       </div>
     );
@@ -139,7 +139,7 @@ export default function AskPage() {
   };
 
   return (
-    <div className="p-8 flex flex-col h-[calc(100vh-52px)]">
+    <div className="page-shell flex flex-col h-[calc(100vh-52px)]">
       <div className="mb-5">
         <h1 className="font-serif text-2xl text-[#f0ede8] mb-1">Ask about a book</h1>
         <p className="text-sm text-[#9b9890]">
@@ -147,7 +147,7 @@ export default function AskPage() {
         </p>
       </div>
 
-      <div className="flex-1 grid grid-cols-[220px_1fr] gap-5 min-h-0">
+      <div className="flex-1 grid grid-cols-1 gap-5 min-h-0 lg:grid-cols-[220px_1fr]">
         {/* Chat Sidebar */}
         <div className="border-r border-[rgba(255,255,255,0.07)] pr-5 overflow-y-auto">
           <button
@@ -214,7 +214,7 @@ export default function AskPage() {
                   {message.role === 'assistant' ? '✦' : 'R'}
                 </div>
                 <div
-                  className={`max-w-[480px] rounded-lg p-3 text-sm leading-relaxed ${
+                  className={`max-w-120 rounded-lg p-3 text-sm leading-relaxed ${
                     message.role === 'assistant'
                       ? 'bg-[#1a1916] border border-[rgba(255,255,255,0.07)] text-[#9b9890]'
                       : 'bg-[#222119] border border-[rgba(255,255,255,0.07)] text-[#f0ede8]'
@@ -248,7 +248,7 @@ export default function AskPage() {
                 <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-[rgba(201,169,110,0.1)] text-[#c9a96e] border border-[rgba(201,169,110,0.25)] text-xs font-medium">
                   ✦
                 </div>
-                <div className="max-w-[480px] rounded-lg p-3 bg-[#1a1916] border border-[rgba(255,255,255,0.07)] text-[#9b9890] text-sm">
+                <div className="max-w-120 rounded-lg p-3 bg-[#1a1916] border border-[rgba(255,255,255,0.07)] text-[#9b9890] text-sm">
                   <div className="flex gap-1">
                     <span className="animate-pulse">●</span>
                     <span className="animate-pulse delay-100">●</span>

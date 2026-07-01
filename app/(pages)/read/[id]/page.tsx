@@ -385,7 +385,7 @@ export default function ReadBookPage() {
 
   if (status === 'loading' || loading) {
     return (
-      <div className="p-8 flex items-center justify-center min-h-[400px]">
+      <div className="page-shell flex items-center justify-center min-h-[400px]">
         <div className="text-[#9b9890]">Loading book...</div>
       </div>
     );
@@ -393,7 +393,7 @@ export default function ReadBookPage() {
 
   if (error) {
     return (
-      <div className="p-8 text-center text-[#9b9890]">
+      <div className="page-shell text-center text-[#9b9890]">
         <p>{error}</p>
         <button
           className="mt-4 rounded-lg border border-[rgba(255,255,255,0.12)] px-4 py-2 text-sm hover:bg-[#1a1916] transition-colors"
@@ -406,13 +406,13 @@ export default function ReadBookPage() {
   }
 
   if (!book) {
-    return <div className="p-8 text-[#9b9890]">Book not found.</div>;
+    return <div className="page-shell text-[#9b9890]">Book not found.</div>;
   }
 
   const progress = book.totalPages > 0 ? Math.round((book.currentPage / book.totalPages) * 100) : 0;
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="page-shell max-w-7xl mx-auto">
       {/* Edit Book Modal */}
       {showEditModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
@@ -485,7 +485,7 @@ export default function ReadBookPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
                   <label className="block text-[11px] text-[#5c5a56] uppercase tracking-wider mb-1.5">
                     Title
@@ -510,7 +510,7 @@ export default function ReadBookPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
                   <label className="block text-[11px] text-[#5c5a56] uppercase tracking-wider mb-1.5">
                     Category

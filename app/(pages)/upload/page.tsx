@@ -28,7 +28,7 @@ export default function UploadPage() {
 
   if (status === 'loading') {
     return (
-      <div className="p-8 flex items-center justify-center min-h-[400px]">
+      <div className="page-shell flex items-center justify-center min-h-[400px]">
         <div className="text-[#9b9890]">Loading...</div>
       </div>
     );
@@ -121,17 +121,17 @@ export default function UploadPage() {
   ];
 
   return (
-    <div className="p-8">
+    <div className="page-shell">
       <div className="mb-7">
         <h1 className="font-serif text-2xl text-[#f0ede8] mb-1">Upload a book</h1>
         <p className="text-sm text-[#9b9890]">PDF, ePub, or MOBI — up to 50MB</p>
       </div>
 
-      <div className="grid grid-cols-[1fr_360px] gap-7">
+      <div className="grid grid-cols-1 gap-7 xl:grid-cols-[1fr_360px]">
         <div>
           {/* Drop Zone */}
           <div
-            className={`border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-all bg-[#1a1916] ${
+            className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all bg-[#1a1916] sm:p-12 ${
               dragActive 
                 ? 'border-[#c9a96e] bg-[rgba(201,169,110,0.1)]' 
                 : 'border-[rgba(255,255,255,0.12)] hover:border-[#c9a96e] hover:bg-[rgba(201,169,110,0.05)]'
@@ -173,7 +173,7 @@ export default function UploadPage() {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <label className="block text-[11px] text-[#5c5a56] uppercase tracking-wider mb-1.5">
                   Title
@@ -202,7 +202,7 @@ export default function UploadPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <label className="block text-[11px] text-[#5c5a56] uppercase tracking-wider mb-1.5">
                   Category

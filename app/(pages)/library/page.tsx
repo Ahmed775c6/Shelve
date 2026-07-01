@@ -51,7 +51,7 @@ export default function LibraryPage() {
   }, [status]);
 
   if (status === 'loading') {
-    return <div className="p-8">Loading...</div>;
+    return <div className="page-shell">Loading...</div>;
   }
 
   const filteredBooks = (books || []).filter((book:any) => {
@@ -68,7 +68,7 @@ export default function LibraryPage() {
   const filters = ['all', 'reading', 'unread', 'fantasy', 'scifi', 'selfhelp'];
 
   return (
-    <div className="p-8">
+    <div className="page-shell">
       <div className="mb-7">
         <h1 className="font-serif text-2xl text-[#f0ede8] mb-1">My library</h1>
         <p className="text-sm text-[#9b9890]">{books.length} books across all categories</p>

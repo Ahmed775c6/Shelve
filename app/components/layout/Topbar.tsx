@@ -12,8 +12,8 @@ export default function Topbar() {
   const user = session?.user;
 
   return (
-    <div className="flex items-center gap-4 px-9 py-4 border-b border-[rgba(255,255,255,0.07)] bg-[#0f0e0c] sticky top-0 z-40">
-      <div className="flex-1 max-w-md">
+    <div className="flex flex-wrap items-center gap-3 px-4 py-4 sm:px-6 lg:px-8 border-b border-[rgba(255,255,255,0.07)] bg-[#0f0e0c] sticky top-0 z-40">
+      <div className="w-full sm:flex-1 sm:max-w-md">
         <div className="flex items-center gap-2 bg-[#1a1916] border border-[rgba(255,255,255,0.07)] rounded-lg px-3 py-2">
           <Search size={14} className="text-[#9b9890]" />
           <input
@@ -36,7 +36,7 @@ export default function Topbar() {
         {/* User Avatar */}
         <Link
           href="/settings"
-          className="flex-shrink-0 group"
+          className="shrink-0 group"
         >
           {user?.image ? (
             <img 

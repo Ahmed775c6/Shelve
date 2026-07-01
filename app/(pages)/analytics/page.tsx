@@ -144,9 +144,8 @@ export default function AnalyticsPage() {
       const sessionsData = await sessionsRes.json();
       setSessions(Array.isArray(sessionsData) ? sessionsData : []);
 
-      // Calculate statistics
       calculateStats(booksData, writingsData, sessionsData);
-      
+
       // Generate calendar data
       generateCalendarData(sessionsData);
     } catch (err) {
@@ -155,6 +154,13 @@ export default function AnalyticsPage() {
       setLoading(false);
     }
   };
+
+  // Re-generate calendar data when year or sessions change
+  useEffect(() => {
+    if (sessions.length > 0) {
+      generateCalendarData(sessions);
+    }
+  }, [selectedYear, sessions]);
 
   const calculateStats = (booksData: BookData[], writingsData: WritingData[], sessionsData: ReadingSession[]) => {
     const totalBooks = booksData.length;
@@ -179,20 +185,25 @@ export default function AnalyticsPage() {
     // Find most read category
     const categoryCount: Record<string, number> = {};
     booksData.forEach(b => {
-      categoryCount[b.category] = (categoryCount[b.category] || 0) + 1;
+      if (b.category) categoryCount[b.category] = (categoryCount[b.category] || 0) + 1;
     });
-    const mostReadCategory = Object.keys(categoryCount).reduce((a, b) => 
-      categoryCount[a] > categoryCount[b] ? a : b, '');
+    const mostReadCategory = Object.entries(categoryCount).length > 0
+      ? Object.entries(categoryCount).reduce((prev, curr) => curr[1] > prev[1] ? curr : prev)[0]
+      : 'N/A';
 
     // Find longest and shortest book
-    const readBooks = booksData.filter(b => b.status === 'archived' || b.currentPage > 0);
-    const longestBook = readBooks.reduce((a, b) => 
-      (a.totalPages || 0) > (b.totalPages || 0) ? a : b, {} as BookData);
-    const shortestBook = readBooks.reduce((a, b) => 
-      (a.totalPages || 0) < (b.totalPages || 0) ? a : b, {} as BookData);
+    const readBooks = booksData.filter(b => (b.status === 'archived' || (b.currentPage && b.currentPage > 0)) && b.totalPages && b.totalPages > 0);
+    let longestBookTitle = 'N/A';
+    let shortestBookTitle = 'N/A';
+    if (readBooks.length > 0) {
+      const longestBook = readBooks.reduce((a, b) => (a.totalPages || 0) > (b.totalPages || 0) ? a : b);
+      const shortestBook = readBooks.reduce((a, b) => (a.totalPages || 0) < (b.totalPages || 0) ? a : b);
+      longestBookTitle = longestBook.title || 'N/A';
+      shortestBookTitle = shortestBook.title || 'N/A';
+    }
 
     // Calculate reading time statistics
-    const sessionsWithDuration = sessionsData.filter(s => s.sessionDuration);
+    const sessionsWithDuration = sessionsData.filter(s => typeof s.sessionDuration === 'number' && s.sessionDuration > 0);
     const totalReadingTime = sessionsWithDuration.reduce((sum, s) => sum + (s.sessionDuration || 0), 0);
     const averageSessionDuration = sessionsWithDuration.length > 0
       ? Math.round(totalReadingTime / sessionsWithDuration.length)
@@ -205,18 +216,20 @@ export default function AnalyticsPage() {
         timeOfDayCount[s.timeOfDay] = (timeOfDayCount[s.timeOfDay] || 0) + 1;
       }
     });
-    const favoriteTimeOfDay = Object.keys(timeOfDayCount).reduce((a, b) => 
-      timeOfDayCount[a] > timeOfDayCount[b] ? a : b, '');
+    const favoriteTimeOfDay = Object.entries(timeOfDayCount).length > 0
+      ? Object.entries(timeOfDayCount).reduce((prev, curr) => curr[1] > prev[1] ? curr : prev)[0]
+      : '';
 
     // Find favorite day of week
     const dayOfWeekCount: Record<number, number> = {};
     sessionsData.forEach(s => {
-      if (s.dayOfWeek !== undefined) {
+      if (typeof s.dayOfWeek === 'number') {
         dayOfWeekCount[s.dayOfWeek] = (dayOfWeekCount[s.dayOfWeek] || 0) + 1;
       }
     });
-    const favoriteDayOfWeek = Object.keys(dayOfWeekCount).reduce((a, b) => 
-      dayOfWeekCount[parseInt(a)] > dayOfWeekCount[parseInt(b)] ? a : b, '');
+    const favoriteDayOfWeek = Object.entries(dayOfWeekCount).length > 0
+      ? parseInt(Object.entries(dayOfWeekCount).reduce((prev, curr) => curr[1] > prev[1] ? curr : prev)[0], 10)
+      : -1;
 
     setStats({
       totalBooks,
@@ -229,12 +242,12 @@ export default function AnalyticsPage() {
       readingStreak: streak,
       pagesPerDay,
       mostReadCategory,
-      longestBook: longestBook.title || 'N/A',
-      shortestBook: shortestBook.title || 'N/A',
+      longestBook: longestBookTitle,
+      shortestBook: shortestBookTitle,
       averageSessionDuration,
       totalReadingTime,
       favoriteTimeOfDay,
-      favoriteDayOfWeek: getDayName(parseInt(favoriteDayOfWeek) || 0),
+      favoriteDayOfWeek: favoriteDayOfWeek >= 0 ? getDayName(favoriteDayOfWeek) : 'N/A',
     });
   };
 
@@ -328,7 +341,7 @@ export default function AnalyticsPage() {
     const booksWithProgress = books.filter(b => b.status === 'reading' || b.status === 'archived');
     return booksWithProgress.map(b => ({
       title: b.title.length > 15 ? b.title.substring(0, 12) + '...' : b.title,
-      progress: Math.round((b.currentPage / b.totalPages) * 100),
+      progress: b.totalPages && b.totalPages > 0 ? Math.round((b.currentPage / b.totalPages) * 100) : 0,
       pages: b.currentPage,
       totalPages: b.totalPages,
       status: b.status,
@@ -453,7 +466,7 @@ export default function AnalyticsPage() {
       .filter(b => b.status === 'reading' || b.status === 'archived')
       .map(b => ({
         title: b.title.length > 12 ? b.title.substring(0, 10) + '...' : b.title,
-        progress: Math.round((b.currentPage / b.totalPages) * 100),
+        progress: b.totalPages && b.totalPages > 0 ? Math.round((b.currentPage / b.totalPages) * 100) : 0,
         pages: b.currentPage,
       }))
       .sort((a, b) => b.progress - a.progress)
@@ -518,13 +531,14 @@ export default function AnalyticsPage() {
 
   const getReadingEfficiencyData = () => {
     return sessions
-      .filter(s => s.sessionDuration && s.sessionDuration > 0)
+      .filter(s => typeof s.sessionDuration === 'number' && s.sessionDuration > 0)
       .map(s => ({
         date: new Date(s.lastReadAt).toLocaleDateString('en-US', { 
           month: 'short', 
           day: 'numeric' 
         }),
-        pagesPerMinute: Math.round((s.pagesRead || 0) / ((s.sessionDuration || 1) / 60) * 10) / 10,
+        // pages per minute = pages / minutes
+        pagesPerMinute: Math.round(((s.pagesRead || 0) / (s.sessionDuration || 1)) * 10) / 10,
         duration: s.sessionDuration || 0,
       }))
       .slice(-20);
@@ -632,14 +646,14 @@ export default function AnalyticsPage() {
 
   if (status === 'loading' || loading) {
     return (
-      <div className="p-8 flex items-center justify-center min-h-[400px]">
+      <div className="page-shell flex items-center justify-center min-h-100">
         <div className="text-[#9b9890]">Loading analytics...</div>
       </div>
     );
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="page-shell max-w-7xl mx-auto">
       <div className="mb-8">
         <h1 className="font-serif text-3xl text-[#f0ede8] mb-2">Analytics</h1>
         <p className="text-sm text-[#9b9890]">Track your reading and writing habits</p>
@@ -678,7 +692,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-1 gap-4 mb-6 sm:grid-cols-2 xl:grid-cols-5">
         <div className="bg-[#1a1916] border border-[rgba(255,255,255,0.07)] rounded-xl p-4">
           <div className="flex items-center gap-2 text-[#5c5a56] text-[11px] uppercase tracking-wider mb-1">
             <BookOpen size={14} />
@@ -738,7 +752,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Additional Stats */}
-      <div className="grid grid-cols-5 gap-4 mb-8">
+      <div className="grid grid-cols-1 gap-4 mb-8 sm:grid-cols-2 xl:grid-cols-5">
         <div className="bg-[#1a1916] border border-[rgba(255,255,255,0.07)] rounded-xl p-4">
           <div className="text-[#5c5a56] text-[11px] uppercase tracking-wider mb-1">Average Rating</div>
           <div className="text-xl font-serif text-[#f0ede8]">{stats.averageRating} ⭐</div>
@@ -786,13 +800,19 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Charts Grid */}
-      <div className="grid grid-cols-2 gap-6 mb-6">
+      <div className="grid grid-cols-1 gap-6 mb-6 xl:grid-cols-2">
         {/* Reading Progress Chart */}
         <div className="bg-[#1a1916] border border-[rgba(255,255,255,0.07)] rounded-xl p-6">
           <h3 className="text-sm font-medium text-[#f0ede8] mb-4">Reading Progress</h3>
-          <div className="h-[250px]">
+          <div className="h-62.5">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={getReadingProgressData()} layout="vertical">
+                <defs>
+                  <linearGradient id="progressGradient" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#8b7dd8" />
+                    <stop offset="100%" stopColor="#c9a96e" />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid stroke="rgba(255,255,255,0.05)" strokeDasharray="3 3" />
                 <XAxis type="number" tick={{ fill: '#5c5a56', fontSize: 11 }} />
                 <YAxis 
@@ -825,19 +845,14 @@ export default function AnalyticsPage() {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-            <defs>
-              <linearGradient id="progressGradient" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#8b7dd8" />
-                <stop offset="100%" stopColor="#c9a96e" />
-              </linearGradient>
-            </defs>
+            
           </div>
         </div>
 
         {/* Category Distribution */}
         <div className="bg-[#1a1916] border border-[rgba(255,255,255,0.07)] rounded-xl p-6">
           <h3 className="text-sm font-medium text-[#f0ede8] mb-4">Category Distribution</h3>
-          <div className="h-[250px]">
+          <div className="h-62.5">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -848,7 +863,7 @@ export default function AnalyticsPage() {
                   outerRadius={90}
                   paddingAngle={2}
                   dataKey="value"
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  label={({ name, percent  } : { name: string, percent: number }) => `${name} ${(percent  * 100).toFixed(0)}%`}
                   labelLine={{ stroke: '#5c5a56' }}
                 >
                   {getCategoryDistribution().map((entry, index) => (
@@ -883,7 +898,7 @@ export default function AnalyticsPage() {
         {/* Reading Activity */}
         <div className="bg-[#1a1916] border border-[rgba(255,255,255,0.07)] rounded-xl p-6">
           <h3 className="text-sm font-medium text-[#f0ede8] mb-4">Reading Activity</h3>
-          <div className="h-[250px]">
+          <div className="h-62.5">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={getReadingActivityData()}>
                 <defs>
@@ -923,7 +938,7 @@ export default function AnalyticsPage() {
         {/* Writing Activity */}
         <div className="bg-[#1a1916] border border-[rgba(255,255,255,0.07)] rounded-xl p-6">
           <h3 className="text-sm font-medium text-[#f0ede8] mb-4">Writing Activity</h3>
-          <div className="h-[250px]">
+          <div className="h-62.5">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={getWritingActivityData()}>
                 <defs>
@@ -963,7 +978,7 @@ export default function AnalyticsPage() {
         {/* Reading vs Writing */}
         <div className="bg-[#1a1916] border border-[rgba(255,255,255,0.07)] rounded-xl p-6">
           <h3 className="text-sm font-medium text-[#f0ede8] mb-4">Reading vs Writing</h3>
-          <div className="h-[250px]">
+          <div className="h-62.5">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={getReadingVsWritingData()}>
                 <CartesianGrid stroke="rgba(255,255,255,0.05)" strokeDasharray="3 3" />
@@ -1018,7 +1033,7 @@ export default function AnalyticsPage() {
             <Clock size={14} className="inline mr-2" />
             Reading Time Distribution
           </h3>
-          <div className="h-[250px]">
+          <div className="h-62.5">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={getTimeOfDayDistribution()}>
                 <CartesianGrid stroke="rgba(255,255,255,0.05)" strokeDasharray="3 3" />
@@ -1054,14 +1069,14 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Additional Charts - Bottom Row */}
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
         {/* Day of Week Distribution */}
         <div className="bg-[#1a1916] border border-[rgba(255,255,255,0.07)] rounded-xl p-6">
           <h3 className="text-sm font-medium text-[#f0ede8] mb-4">
             <Calendar size={14} className="inline mr-2" />
             Day of Week
           </h3>
-          <div className="h-[200px]">
+          <div className="h-50">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={getDayOfWeekDistribution()}>
                 <CartesianGrid stroke="rgba(255,255,255,0.05)" strokeDasharray="3 3" />
@@ -1102,7 +1117,7 @@ export default function AnalyticsPage() {
             <Clock size={14} className="inline mr-2" />
             Session Duration
           </h3>
-          <div className="h-[200px]">
+          <div className="h-50">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={getSessionDurationData()}>
                 <CartesianGrid stroke="rgba(255,255,255,0.05)" strokeDasharray="3 3" />
@@ -1142,7 +1157,7 @@ export default function AnalyticsPage() {
             <Zap size={14} className="inline mr-2" />
             Reading Efficiency
           </h3>
-          <div className="h-[200px]">
+          <div className="h-50">
             <ResponsiveContainer width="100%" height="100%">
               <ScatterChart>
                 <CartesianGrid stroke="rgba(255,255,255,0.05)" strokeDasharray="3 3" />

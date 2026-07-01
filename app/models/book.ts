@@ -8,7 +8,7 @@ export interface IBook extends Document {
   coverColor: string;
   coverImage?: string;
   fileUrl?: string;
-  fileType?: 'pdf' | 'epub' | 'mobi';
+  fileType?: 'pdf' | 'epub' | 'mobi' | 'txt' | 'md' | 'html' | 'json' | 'xml' | 'csv' | 'js' | 'css' | 'other';
   totalPages: number;
   currentPage: number;
   tags: string[];
@@ -18,6 +18,7 @@ export interface IBook extends Document {
   finishedAt?: Date;
   rating?: number;
   notes?: string;
+  description?: string;
 }
 
 const BookSchema = new Schema<IBook>({
@@ -32,7 +33,11 @@ const BookSchema = new Schema<IBook>({
   coverColor: { type: String, default: 'c-blue' },
   coverImage: { type: String },
   fileUrl: { type: String },
-  fileType: { type: String, enum: ['pdf', 'epub', 'mobi'] },
+  fileType: { 
+    type: String, 
+    enum: ['pdf', 'epub', 'mobi', 'txt', 'md', 'html', 'json', 'xml', 'csv', 'js', 'css', 'other'],
+    default: 'other'
+  },
   totalPages: { type: Number, default: 0 },
   currentPage: { type: Number, default: 0 },
   tags: [String],
@@ -42,6 +47,7 @@ const BookSchema = new Schema<IBook>({
   finishedAt: { type: Date },
   rating: { type: Number, min: 0, max: 5 },
   notes: { type: String },
+  description: { type: String },
 }, { timestamps: true });
 
 export default mongoose.models.Book || mongoose.model<IBook>('Book', BookSchema);

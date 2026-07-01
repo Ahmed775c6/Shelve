@@ -7,7 +7,8 @@ import { IBook } from '@/app/models/book';
 import { 
   BookOpen, Clock, ChevronLeft, ChevronRight, 
   Bookmark, Share2, Settings, Sun, Moon, 
-  ZoomIn, ZoomOut, Menu, X
+  ZoomIn, ZoomOut, Menu, X, FileText, 
+  Download, ExternalLink, Loader2
 } from 'lucide-react';
 
 export default function ReadPage() {
@@ -20,8 +21,9 @@ export default function ReadPage() {
   const [theme, setTheme] = useState<'light' | 'dark' | 'sepia'>('dark');
   const [showSidebar, setShowSidebar] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
-  const [isReading, setIsReading] = useState(false);
   const [previewContent, setPreviewContent] = useState<string | null>(null);
+  const [contentLoading, setContentLoading] = useState(false);
+  const [contentError, setContentError] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -63,41 +65,145 @@ export default function ReadPage() {
     if (savedShowSidebar) setShowSidebar(savedShowSidebar === 'true');
   }, [status]);
 
+  const fetchOpenLibraryPreview = async (book: IBook) => {
+    setContentLoading(true);
+    setContentError(null);
+    setPreviewContent(null);
+
+    const searchQuery = [book.title, book.author].filter(Boolean).join(' ');
+
+    if (!searchQuery.trim()) {
+      setPreviewContent(book.description?.trim() || 'No preview available for this book yet.');
+      setContentLoading(false);
+      return;
+    }
+
+    try {
+      const searchResponse = await fetch(
+        `https://openlibrary.org/search.json?q=${encodeURIComponent(searchQuery)}&limit=5`
+      );
+
+      if (!searchResponse.ok) {
+        throw new Error('Open Library search failed');
+      }
+
+      const searchData = await searchResponse.json();
+      const match = searchData.docs?.find((doc: any) => doc.title);
+
+      if (!match?.key) {
+        setPreviewContent(book.description?.trim() || 'No preview available for this book yet.');
+        return;
+      }
+
+      const workKey = match.key.replace('/books/', '/works/');
+      const workResponse = await fetch(`https://openlibrary.org${workKey}.json`);
+
+      if (!workResponse.ok) {
+        throw new Error('Open Library work details failed');
+      }
+
+      const workData = await workResponse.json();
+      const description = typeof workData.description === 'string'
+        ? workData.description
+        : workData.description?.value || book.description || '';
+
+      let excerpts: string[] = [];
+      let chapters: Array<{ title: string; pages?: number }> = [];
+
+      const editionsResponse = await fetch(`https://openlibrary.org${workKey}/editions.json?limit=1`);
+      if (editionsResponse.ok) {
+        const editionsData = await editionsResponse.json();
+        const firstEdition = editionsData.entries?.[0];
+
+        if (firstEdition) {
+          chapters = (firstEdition.table_of_contents || []).map((item: any) => ({
+            title: item.title,
+            pages: item.pages || undefined,
+          }));
+          excerpts = (firstEdition.excerpts || [])
+            .map((item: any) => item.text)
+            .filter(Boolean);
+        }
+      }
+
+      const contentParts = [
+        description,
+        chapters.length > 0 ? `Chapters:\n${chapters.map((chapter) => `• ${chapter.title}`).join('\n')}` : '',
+        excerpts.slice(0, 3).length > 0 ? `Excerpts:\n${excerpts.slice(0, 3).join('\n\n')}` : '',
+      ].filter(Boolean);
+
+      setPreviewContent(contentParts.join('\n\n') || 'No preview available for this book yet.');
+    } catch (error) {
+      console.error('Error loading Open Library preview:', error);
+      setContentError('Unable to load preview for this book right now.');
+      setPreviewContent(book.description?.trim() || null);
+    } finally {
+      setContentLoading(false);
+    }
+  };
+
   useEffect(() => {
     const loadPreviewContent = async () => {
-      if (!selectedBook?.fileUrl) {
+      if (!selectedBook) {
         setPreviewContent(null);
+        setContentError(null);
         return;
       }
 
-      const fileType = (selectedBook.fileType || '').toLowerCase();
-      const isTextLike = fileType.includes('text') || fileType.includes('json') || fileType.includes('xml') || fileType.includes('markdown') || fileType.includes('javascript') || fileType.includes('html');
+      if (selectedBook.fileUrl) {
+        setContentLoading(true);
+        setContentError(null);
 
-      if (!isTextLike) {
-        setPreviewContent(null);
-        return;
-      }
+        const fileType = (selectedBook.fileType || '').toLowerCase();
 
-      try {
-        const response = await fetch(selectedBook.fileUrl);
-        if (response.ok) {
-          const text = await response.text();
-          setPreviewContent(text);
-        } else {
+        const isTextLike = fileType.includes('text') ||
+          fileType.includes('json') ||
+          fileType.includes('xml') ||
+          fileType.includes('markdown') ||
+          fileType.includes('javascript') ||
+          fileType.includes('html') ||
+          fileType.includes('css') ||
+          fileType.includes('csv');
+
+        if (!isTextLike && !fileType.includes('pdf')) {
           setPreviewContent(null);
+          setContentLoading(false);
+          return;
         }
-      } catch (error) {
-        console.error('Error loading preview content:', error);
-        setPreviewContent(null);
+
+        try {
+          const response = await fetch(selectedBook.fileUrl);
+          if (response.ok) {
+            if (isTextLike) {
+              const text = await response.text();
+              setPreviewContent(text);
+            } else {
+              setPreviewContent(null);
+            }
+          } else {
+            setContentError('Failed to load book content');
+            setPreviewContent(null);
+          }
+        } catch (error) {
+          console.error('Error loading preview content:', error);
+          setContentError('Error loading book content');
+          setPreviewContent(null);
+        } finally {
+          setContentLoading(false);
+        }
+
+        return;
       }
+
+      await fetchOpenLibraryPreview(selectedBook);
     };
 
     loadPreviewContent();
-  }, [selectedBook?._id, selectedBook?.fileUrl, selectedBook?.fileType]);
+  }, [selectedBook?._id, selectedBook?.fileUrl, selectedBook?.fileType, selectedBook?.title, selectedBook?.author, selectedBook?.description]);
 
   if (status === 'loading' || loading) {
     return (
-      <div className="p-8 flex items-center justify-center min-h-[400px]">
+      <div className="page-shell flex items-center justify-center min-h-100">
         <div className="text-[#9b9890]">Loading your reading list...</div>
       </div>
     );
@@ -110,7 +216,6 @@ export default function ReadPage() {
   const handleBookSelect = (book: IBook) => {
     setSelectedBook(book);
     setCurrentPage(book.currentPage || 0);
-    setIsReading(false);
   };
 
   const handlePageChange = (newPage: number) => {
@@ -196,63 +301,212 @@ export default function ReadPage() {
   const getBookContent = () => {
     if (!selectedBook) return null;
 
-    if (selectedBook.fileUrl) {
-      const fileType = (selectedBook.fileType || '').toLowerCase();
-      const isPdf = fileType.includes('pdf');
-      const isTextLike = fileType.includes('text') || fileType.includes('json') || fileType.includes('xml') || fileType.includes('markdown') || fileType.includes('javascript') || fileType.includes('html');
-
-      if (isPdf) {
-        return (
-          <div className="h-full w-full overflow-hidden bg-white">
-            <iframe
-              src={selectedBook.fileUrl}
-              title={selectedBook.title}
-              className="h-full min-h-[70vh] w-full border-0"
-            />
-          </div>
-        );
-      }
-
+    if (!selectedBook.fileUrl) {
       return (
         <div className="h-full w-full overflow-y-auto px-6 py-8">
-          <div className="mx-auto max-w-[720px] space-y-4">
-            <h2 className="text-2xl font-serif font-normal text-[#f0ede8]">
+          <div className="mx-auto max-w-180">
+            <h2 className="text-2xl font-serif font-normal text-[#f0ede8] mb-8">
               {selectedBook.title}
             </h2>
 
-            {previewContent ? (
-              <div className="whitespace-pre-wrap rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] p-4 text-sm leading-relaxed text-[#e4e2dd]">
-                {previewContent}
+            <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] p-6">
+              <div className="mb-4 flex items-center gap-2 text-sm text-[#c9a96e]">
+                <BookOpen size={16} />
+                Open Library preview
               </div>
-            ) : (
-              <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] p-4 text-sm leading-relaxed text-[#e4e2dd]">
-                <p>
-                  The uploaded book file is attached and ready to open. For text-based uploads, the content preview will appear here.
-                </p>
-                <p className="mt-3">
-                  <a
-                    href={selectedBook.fileUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-[#c9a96e] underline"
-                  >
-                    Open the uploaded file
-                  </a>
-                </p>
-              </div>
-            )}
 
-            <p className="text-sm text-[#9b9890]">
-              File type: <span className="text-[#c9a96e]">{selectedBook.fileType || 'uploaded file'}</span>
-            </p>
+              {contentLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="animate-spin text-[#c9a96e]" size={32} />
+                </div>
+              ) : contentError ? (
+                <div className="rounded-xl border border-[rgba(224,82,82,0.25)] bg-[rgba(224,82,82,0.1)] p-6 text-center">
+                  <p className="text-[#e05252]">{contentError}</p>
+                </div>
+              ) : previewContent ? (
+                <div className="whitespace-pre-wrap text-sm leading-relaxed text-[#e4e2dd]">
+                  {previewContent}
+                </div>
+              ) : (
+                <p className="text-sm text-[#e4e2dd]">
+                  A preview for this book is not available yet. Try opening the book from the library again later.
+                </p>
+              )}
+            </div>
+
+            <div className="mt-6 text-sm text-[#9b9890]">
+              <span className="flex items-center gap-2">
+                <FileText size={14} />
+                Source: <span className="text-[#c9a96e]">Open Library</span>
+              </span>
+            </div>
           </div>
         </div>
       );
     }
 
+    const fileType = (selectedBook.fileType || '').toLowerCase();
+    const isTextLike = fileType.includes('text') || 
+      fileType.includes('json') || 
+      fileType.includes('xml') || 
+      fileType.includes('markdown') || 
+      fileType.includes('javascript') || 
+      fileType.includes('html') ||
+      fileType.includes('css') ||
+      fileType.includes('csv');
+    const isPdf = fileType.includes('pdf');
+    const isEpub = fileType.includes('epub');
+    const isMobi = fileType.includes('mobi');
+
+    // For PDF files - show in iframe
+    if (isPdf) {
+      return (
+        <div className="h-full w-full overflow-hidden bg-white">
+          <iframe
+            src={`${selectedBook.fileUrl}#page=${currentPage}`}
+            title={selectedBook.title}
+            className="h-full w-full border-0"
+            style={{ minHeight: 'calc(100vh - 200px)' }}
+          />
+        </div>
+      );
+    }
+
+    // For text-based files - show formatted text
+    if (isTextLike) {
+      return (
+        <div className="h-full w-full overflow-y-auto px-6 py-8">
+          <div className="mx-auto max-w-180">
+            <h2 className="text-2xl font-serif font-normal text-[#f0ede8] mb-8">
+              {selectedBook.title}
+            </h2>
+
+            {contentLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="animate-spin text-[#c9a96e]" size={32} />
+              </div>
+            ) : contentError ? (
+              <div className="rounded-xl border border-[rgba(224,82,82,0.25)] bg-[rgba(224,82,82,0.1)] p-6 text-center">
+                <p className="text-[#e05252]">{contentError}</p>
+                <a
+                  href={selectedBook.fileUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-3 inline-block text-[#c9a96e] hover:underline"
+                >
+                  Try opening the file directly
+                </a>
+              </div>
+            ) : previewContent ? (
+              <div className="whitespace-pre-wrap rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] p-6 text-sm leading-relaxed text-[#e4e2dd]">
+                {previewContent}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] p-6 text-sm leading-relaxed text-[#e4e2dd]">
+                <p>No preview available for this file type.</p>
+                <p className="mt-3">
+                  <a
+                    href={selectedBook.fileUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[#c9a96e] hover:underline"
+                  >
+                    Download or open the file
+                  </a>
+                </p>
+              </div>
+            )}
+
+            <div className="mt-8 text-sm text-[#9b9890]">
+              <span className="flex items-center gap-2">
+                <FileText size={14} />
+                File type: <span className="text-[#c9a96e]">{selectedBook.fileType || 'Unknown'}</span>
+              </span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // For EPUB and MOBI files
+    if (isEpub || isMobi) {
+      return (
+        <div className="h-full w-full overflow-y-auto px-6 py-8">
+          <div className="mx-auto max-w-180">
+            <h2 className="text-2xl font-serif font-normal text-[#f0ede8] mb-4">
+              {selectedBook.title}
+            </h2>
+            <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] p-6">
+              <p className="text-sm text-[#e4e2dd]">
+                This book is in <strong>{selectedBook.fileType?.toUpperCase()}</strong> format.
+                For the best reading experience, we recommend downloading the file and opening it 
+                with a dedicated e-reader application.
+              </p>
+              <div className="mt-4 flex gap-3">
+                <a
+                  href={selectedBook.fileUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-2 px-4 py-2 bg-[#c9a96e] text-[#1a1510] rounded-lg text-sm font-medium hover:bg-[#d4b47a] transition-colors"
+                >
+                  <Download size={14} />
+                  Download File
+                </a>
+                <a
+                  href={selectedBook.fileUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-2 px-4 py-2 bg-[#222119] border border-[rgba(255,255,255,0.07)] text-[#9b9890] rounded-lg text-sm hover:text-[#f0ede8] transition-colors"
+                >
+                  <ExternalLink size={14} />
+                  Open in Browser
+                </a>
+              </div>
+            </div>
+            <div className="mt-4 text-sm text-[#9b9890]">
+              <span className="flex items-center gap-2">
+                <FileText size={14} />
+                File type: <span className="text-[#c9a96e]">{selectedBook.fileType?.toUpperCase()}</span>
+              </span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Generic fallback
     return (
-      <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] p-4 text-sm text-[#9b9890]">
-        No uploaded file is attached to this book yet.
+      <div className="h-full w-full overflow-y-auto px-6 py-8">
+        <div className="mx-auto max-w-180">
+          <h2 className="text-2xl font-serif font-normal text-[#f0ede8] mb-4">
+            {selectedBook.title}
+          </h2>
+          <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] p-6">
+            <p className="text-sm text-[#e4e2dd]">
+              This book is in <strong>{selectedBook.fileType?.toUpperCase() || 'Unknown'}</strong> format.
+            </p>
+            <div className="mt-4 flex gap-3">
+              <a
+                href={selectedBook.fileUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-2 px-4 py-2 bg-[#c9a96e] text-[#1a1510] rounded-lg text-sm font-medium hover:bg-[#d4b47a] transition-colors"
+              >
+                <Download size={14} />
+                Download File
+              </a>
+              <a
+                href={selectedBook.fileUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-2 px-4 py-2 bg-[#222119] border border-[rgba(255,255,255,0.07)] text-[#9b9890] rounded-lg text-sm hover:text-[#f0ede8] transition-colors"
+              >
+                <ExternalLink size={14} />
+                Open in Browser
+              </a>
+            </div>
+          </div>
+        </div>
       </div>
     );
   };
@@ -276,7 +530,7 @@ export default function ReadPage() {
   return (
     <div className="flex h-[calc(100vh-52px)]">
       {/* Sidebar - Book List */}
-      <div className={`${showSidebar ? 'w-[280px]' : 'w-0'} transition-all duration-300 overflow-hidden border-r border-[rgba(255,255,255,0.07)] bg-[#1a1916]`}>
+      <div className={`${showSidebar ? 'w-70' : 'w-0'} transition-all duration-300 overflow-hidden border-r border-[rgba(255,255,255,0.07)] bg-[#1a1916]`}>
         <div className="p-4 h-full overflow-y-auto">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-medium text-[#9b9890] uppercase tracking-wider">
@@ -302,7 +556,7 @@ export default function ReadPage() {
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-[58px] rounded-[2px_4px_4px_2px] flex-shrink-0 overflow-hidden">
+                    <div className="w-10 h-14.5 rounded-[2px_4px_4px_2px] shrink-0 overflow-hidden">
                       {book.coverImage ? (
                         <img 
                           src={book.coverImage} 
@@ -461,7 +715,7 @@ export default function ReadPage() {
 
         {/* Reader Content */}
         <div 
-          className={`flex-1 overflow-hidden ${getThemeClasses()}`}
+          className={`flex-1 overflow-hidden relative ${getThemeClasses()}`}
           style={{ 
             fontSize: `${fontSize}px`,
             lineHeight: 1.85,

@@ -221,7 +221,7 @@ export default function WritePage() {
 
   if (status === 'loading' || loading) {
     return (
-      <div className="p-8 flex items-center justify-center min-h-[400px]">
+      <div className="page-shell flex items-center justify-center min-h-[400px]">
         <div className="text-[#9b9890]">Loading your writings...</div>
       </div>
     );
@@ -469,7 +469,7 @@ export default function WritePage() {
   );
 
   return (
-    <div className="p-8" ref={editorRef}>
+    <div className="page-shell" ref={editorRef}>
       <div className="flex items-center justify-between mb-7">
         <div>
           <h1 className="font-serif text-2xl text-[#f0ede8] mb-1">My writings</h1>

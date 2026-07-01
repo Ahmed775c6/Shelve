@@ -23,11 +23,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${inter.className} bg-[#0f0e0c] text-[#f0ede8]`}>
+      <body className={`${inter.className} bg-[#0f0e0c] text-[#f0ede8] overflow-x-hidden`}>
         <Providers>
-          <div className="flex min-h-screen">
+          <div className="flex min-h-screen flex-col lg:flex-row">
             <Sidebar />
-            <main className="flex-1 ml-60">
+            <main className="flex-1 pb-20 lg:ml-60 lg:pb-0">
               <Topbar />
               {children}
             </main>

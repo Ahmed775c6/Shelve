@@ -43,7 +43,7 @@ export default function SignInPage() {
   };
 
   return (
-    <div className="bg-[#1a1916] border border-[rgba(255,255,255,0.07)] rounded-xl p-8 max-w-md">
+    <div className="w-full max-w-md bg-[#1a1916] border border-[rgba(255,255,255,0.07)] rounded-xl p-6 sm:p-8">
       <div className="text-center mb-8">
         <div className="w-12 h-12 bg-[#c9a96e] rounded-lg flex items-center justify-center text-2xl mx-auto mb-4">
           📚
@@ -119,7 +119,7 @@ export default function SignInPage() {
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-3">
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <button
             onClick={handleGoogleSignIn}
             className="flex items-center justify-center gap-2 py-2 bg-[#0f0e0c] border border-[rgba(255,255,255,0.07)] rounded-lg text-sm text-[#9b9890] hover:text-[#f0ede8] hover:border-[rgba(255,255,255,0.12)] transition-colors"
