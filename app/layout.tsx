@@ -1,11 +1,7 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
 import './globals.css';
-import Sidebar from './components/layout/Sidebar';
-import Topbar from './components/layout/Topbar';
+import { ThemeProvider } from './components/providers/theme-provider';
 import Providers from './components/providers/Providers';
-
-const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: 'Shelve — Your Personal Library',
@@ -22,16 +18,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className={`${inter.className} bg-[#0f0e0c] text-[#f0ede8] overflow-x-hidden`}>
+    <html lang="en" className="font-sans" suppressHydrationWarning>
+      <body className="overflow-x-hidden">
         <Providers>
-          <div className="flex min-h-screen flex-col lg:flex-row">
-            <Sidebar />
-            <main className="flex-1 pb-20 lg:ml-60 lg:pb-0">
-              <Topbar />
-              {children}
-            </main>
-          </div>
+    <ThemeProvider
+            attribute="class"
+            defaultTheme="dark"
+            enableSystem
+            disableTransitionOnChange
+          >
+            {children}
+          </ThemeProvider>
         </Providers>
       </body>
     </html>

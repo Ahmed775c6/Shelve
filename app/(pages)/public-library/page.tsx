@@ -248,7 +248,7 @@ export default function PublicLibraryPage() {
   };
 
   const getCoverUrl = (coverId?: number, size: 'S' | 'M' | 'L' = 'M') => {
-    if (!coverId) return null;
+    if (!coverId) return undefined;
     return `https://covers.openlibrary.org/b/id/${coverId}-${size}.jpg`;
   };
 
@@ -440,7 +440,6 @@ console.log('boo; ', book)
                     author={book.author_name?.[0] || 'Unknown Author'}
                     coverImage={getCoverUrl(book.cover_i , 'L')}
                     coverColor={getRandomColor()}
-                    category={book.subject?.[0]}
                   />
                 </div>
 

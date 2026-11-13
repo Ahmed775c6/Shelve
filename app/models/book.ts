@@ -19,6 +19,7 @@ export interface IBook extends Document {
   rating?: number;
   notes?: string;
   description?: string;
+  story?: string;
 }
 
 const BookSchema = new Schema<IBook>({
@@ -48,6 +49,7 @@ const BookSchema = new Schema<IBook>({
   rating: { type: Number, min: 0, max: 5 },
   notes: { type: String },
   description: { type: String },
+  story: { type: String },
 }, { timestamps: true });
 
 export default mongoose.models.Book || mongoose.model<IBook>('Book', BookSchema);

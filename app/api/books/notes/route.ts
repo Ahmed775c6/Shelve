@@ -1,22 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import connectDB from '@/app/lib/mongodb';
+import Book from '@/app/models/book';
 import BookNote from '@/app/models/BookNote';
 import { authOptions } from '@/app/lib/auth';
 
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const bookId = params.id;
+    const bookId = req.nextUrl.searchParams.get('bookId');
+    if (!bookId) {
+      return NextResponse.json({ error: 'Book ID is required' }, { status: 400 });
+    }
+
     await connectDB();
+    const book = await Book.findOne({ _id: bookId, userId: session.user.id });
+    if (!book) {
+      return NextResponse.json({ error: 'Book not found' }, { status: 404 });
+    }
 
     // Get all notes for this book (both public and user's private notes)
     const notes = await BookNote.find({
@@ -39,17 +45,18 @@ export async function GET(
   }
 }
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const bookId = params.id;
+    const bookId = req.nextUrl.searchParams.get('bookId');
+    if (!bookId) {
+      return NextResponse.json({ error: 'Book ID is required' }, { status: 400 });
+    }
+
     const { content, page, isPrivate } = await req.json();
 
     if (!content?.trim()) {
@@ -60,6 +67,10 @@ export async function POST(
     }
 
     await connectDB();
+    const book = await Book.findOne({ _id: bookId, userId: session.user.id });
+    if (!book) {
+      return NextResponse.json({ error: 'Book not found' }, { status: 404 });
+    }
 
     const note = new BookNote({
       bookId,

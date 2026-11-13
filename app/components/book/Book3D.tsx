@@ -15,20 +15,20 @@ export default function Book3D({ title, author, coverColor, coverImage, progress
 
   return (
     <div className="book-item cursor-pointer" onClick={onClick}>
-      <div className="book-3d-wrap w-20 h-[120px] relative mb-2.5">
-        <div className="book-3d w-[70px] h-[116px] transform-style-3d transform -rotate-y-15 transition-transform duration-300 hover:rotate-y-5 hover:translate-x-1">
-          <div className={`book-face absolute w-[70px] h-[116px] rounded-[2px_5px_5px_2px] backface-hidden flex flex-col justify-end p-2 overflow-hidden ${!coverImage ? coverColor : ''}`}>
+      <div className="book-3d-wrap w-40  relative mb-2.5">
+        <div className="book-3d  h-[116px] transform-style-3d transform -rotate-y-15 transition-transform duration-300 hover:rotate-y-5 hover:translate-x-1">
+          <div className={`book-face absolute w-full h-full rounded-[2px_5px_5px_2px] backface-hidden flex flex-col justify-end p-2 overflow-hidden ${!coverImage ? coverColor : ''}`}>
             {coverImage && (
               <img 
                 src={coverImage} 
                 alt={title} 
-                className="absolute inset-0 w-full h-full object-cover rounded-[2px_5px_5px_2px]"
+                className="absolute inset-0 w-full h-full  object-cover rounded-[2px_5px_5px_2px]"
               />
             )}
             {progress > 0 && (
               <svg className="absolute top-1.5 right-1.5 w-5 h-5 z-10" viewBox="0 0 22 22">
                 <circle cx="11" cy="11" r="8" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="2.5"/>
-                <circle cx="11" cy="11" r="8" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="2.5" 
+                <circle cx="11" cy="11" r="8" fill="none" stroke="rgba(245, 168, 35, 0.85)" strokeWidth="2.5" 
                   strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round" 
                   transform="rotate(-90 11 11)"/>
               </svg>

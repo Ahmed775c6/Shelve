@@ -40,12 +40,25 @@ export async function PATCH(req: NextRequest) {
     }
 
     const data = await req.json();
+    if (
+      !data ||
+      typeof data !== 'object' ||
+      typeof data.name !== 'string' ||
+      !data.name.trim() ||
+      typeof data.image !== 'string'
+    ) {
+      return NextResponse.json(
+        { error: 'A valid name and image URL are required' },
+        { status: 400 }
+      );
+    }
+
     await connectDB();
 
     const user = await User.findByIdAndUpdate(
       session.user.id,
-      { $set: data },
-      { new: true }
+      { $set: { name: data.name.trim(), image: data.image } },
+      { returnDocument: 'after', runValidators: true }
     ).select('-password');
 
     if (!user) {

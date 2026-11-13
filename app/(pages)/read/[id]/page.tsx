@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -7,8 +8,17 @@ import { IBook } from '@/app/models/book';
 import { 
   Save, Edit2, Trash2, Clock, BookOpen, 
   Star, MessageSquare, Plus, X, Pencil,
-  UploadCloud, Image as ImageIcon
+  UploadCloud, Image as ImageIcon, ChevronLeft, ChevronRight
 } from 'lucide-react';
+
+const PdfReader = dynamic(() => import('@/app/components/reader/PdfReader'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-full w-full items-center justify-center text-[#9b9890]">
+      Loading PDF reader...
+    </div>
+  ),
+});
 
 interface BookNote {
   _id: string;
@@ -31,7 +41,9 @@ export default function ReadBookPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [previewContent, setPreviewContent] = useState<string | null>(null);
-  
+  const [previewPdfPage, setPreviewPdfPage] = useState(0);
+  const [previewPdfPageCount, setPreviewPdfPageCount] = useState(0);
+
   // Note state
   const [showNoteEditor, setShowNoteEditor] = useState(false);
   const [editingNote, setEditingNote] = useState<BookNote | null>(null);
@@ -52,6 +64,8 @@ export default function ReadBookPage() {
     author: '',
     category: '',
     totalPages: 0,
+    description: '',
+    story: '',
     coverColor: 'c-blue',
     coverImage: '',
   });
@@ -76,11 +90,15 @@ export default function ReadBookPage() {
           }
           const data = await res.json();
           setBook(data);
+          setPreviewPdfPage(0);
+          setPreviewPdfPageCount(0);
           setEditData({
             title: data.title,
             author: data.author,
             category: data.category,
             totalPages: data.totalPages,
+            description: data.description || '',
+            story: data.story || '',
             coverColor: data.coverColor || 'c-blue',
             coverImage: data.coverImage || '',
           });
@@ -113,39 +131,6 @@ export default function ReadBookPage() {
       console.error('Error loading notes:', err);
     }
   };
-
-  useEffect(() => {
-    const loadPreviewContent = async () => {
-      if (!book?.fileUrl) {
-        setPreviewContent(null);
-        return;
-      }
-
-      const fileType = (book.fileType || '').toLowerCase();
-      const isTextLike = fileType.includes('text') || fileType.includes('json') || 
-        fileType.includes('xml') || fileType.includes('markdown') || 
-        fileType.includes('javascript') || fileType.includes('html');
-
-      if (!isTextLike) {
-        setPreviewContent(null);
-        return;
-      }
-
-      try {
-        const response = await fetch(book.fileUrl);
-        if (response.ok) {
-          setPreviewContent(await response.text());
-        } else {
-          setPreviewContent(null);
-        }
-      } catch (err) {
-        console.error(err);
-        setPreviewContent(null);
-      }
-    };
-
-    loadPreviewContent();
-  }, [book?._id, book?.fileUrl, book?.fileType]);
 
   const updateStatus = async (payload: any) => {
     if (!id) return;
@@ -233,6 +218,8 @@ export default function ReadBookPage() {
           author: editData.author.trim(),
           category: editData.category || 'Other',
           totalPages: parseInt(editData.totalPages as any) || 0,
+          description: editData.description.trim(),
+          story: editData.story.trim() || undefined,
           coverColor: editData.coverColor,
           coverImage: coverImageUrl || undefined,
         }),
@@ -246,6 +233,8 @@ export default function ReadBookPage() {
           author: updated.author,
           category: updated.category,
           totalPages: updated.totalPages,
+          description: updated.description || '',
+          story: updated.story || '',
           coverColor: updated.coverColor || 'c-blue',
           coverImage: updated.coverImage || '',
         });
@@ -530,6 +519,7 @@ export default function ReadBookPage() {
                     <option value="Science">Science</option>
                     <option value="Biography">Biography</option>
                     <option value="Philosophy">Philosophy</option>
+                    <option value="Psychologie">Psychologie</option>
                   </select>
                 </div>
                 <div>
@@ -543,6 +533,30 @@ export default function ReadBookPage() {
                     className="w-full bg-[#0f0e0c] border border-[rgba(255,255,255,0.07)] rounded-lg px-3 py-2 text-sm text-[#f0ede8] placeholder:text-[#5c5a56] focus:border-[#c9a96e] outline-none transition-colors"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] text-[#5c5a56] uppercase tracking-wider mb-1.5">
+                  Description
+                </label>
+                <textarea
+                  value={editData.description}
+                  onChange={(e) => setEditData({ ...editData, description: e.target.value })}
+                  rows={3}
+                  className="w-full bg-[#0f0e0c] border border-[rgba(255,255,255,0.07)] rounded-lg px-3 py-2 text-sm text-[#f0ede8] placeholder:text-[#5c5a56] focus:border-[#c9a96e] outline-none transition-colors resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] text-[#5c5a56] uppercase tracking-wider mb-1.5">
+                  Story (optional)
+                </label>
+                <textarea
+                  value={editData.story}
+                  onChange={(e) => setEditData({ ...editData, story: e.target.value })}
+                  rows={4}
+                  className="w-full bg-[#0f0e0c] border border-[rgba(255,255,255,0.07)] rounded-lg px-3 py-2 text-sm text-[#f0ede8] placeholder:text-[#5c5a56] focus:border-[#c9a96e] outline-none transition-colors resize-none"
+                />
               </div>
 
               {/* Cover Color Selection (fallback) */}
@@ -716,37 +730,74 @@ export default function ReadBookPage() {
             </div>
           </div>
 
-          {/* File Preview */}
-          {book.fileUrl && (
-            <div className="rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[#1a1916] p-6">
-              <h2 className="text-sm uppercase tracking-[0.2em] text-[#5c5a56] mb-4">Reader preview</h2>
-              <div className="overflow-hidden rounded-xl border border-[rgba(255,255,255,0.08)]">
-                {book.fileType?.toLowerCase().includes('pdf') ? (
-                  <iframe 
-                    src={book.fileUrl} 
-                    title={book.title} 
-                    className="min-h-[70vh] w-full border-0 bg-white"
-                  />
-                ) : previewContent ? (
-                  <div className="whitespace-pre-wrap bg-[rgba(255,255,255,0.03)] p-6 text-sm leading-relaxed text-[#e4e2dd] max-h-[70vh] overflow-y-auto">
-                    {previewContent}
-                  </div>
-                ) : (
-                  <div className="bg-[rgba(255,255,255,0.03)] p-6 text-sm leading-relaxed text-[#e4e2dd]">
-                    <p>The uploaded book file is attached. Open it directly if you want to read it outside the preview panel.</p>
-                    <a 
-                      href={book.fileUrl} 
-                      target="_blank" 
-                      rel="noreferrer" 
-                      className="mt-3 inline-block text-[#c9a96e] hover:underline"
-                    >
-                      Open uploaded file →
-                    </a>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+{/* File Preview */}
+{book.fileUrl && (
+  <div className="rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[#1a1916] p-6">
+    <div className="mb-4 flex items-center justify-between gap-3">
+      <h2 className="text-sm uppercase tracking-[0.2em] text-[#5c5a56]">Reader preview 101</h2>
+      {(book.fileType?.toLowerCase().includes('pdf') ||
+        book.fileUrl.toLowerCase().endsWith('.pdf')) && previewPdfPageCount > 0 && (
+        <div className="flex items-center gap-2 text-sm text-[#9b9890]">
+          <button
+            type="button"
+            onClick={() => setPreviewPdfPage((page) => Math.max(0, page - 1))}
+            disabled={previewPdfPage === 0}
+            aria-label="Previous PDF page"
+            className="rounded p-1 hover:bg-[#292722] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <span>Page {previewPdfPage + 1} of {previewPdfPageCount}</span>
+          <button
+            type="button"
+            onClick={() => setPreviewPdfPage((page) => Math.min(previewPdfPageCount - 1, page + 1))}
+            disabled={previewPdfPage >= previewPdfPageCount - 1}
+            aria-label="Next PDF page"
+            className="rounded p-1 hover:bg-[#292722] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <ChevronRight size={16} />
+          </button>
+        </div>
+      )}
+    </div>
+    <div className="overflow-hidden rounded-xl border border-[rgba(255,255,255,0.08)]">
+      {(book.fileType?.toLowerCase().includes('pdf') ||
+        book.fileUrl.toLowerCase().endsWith('.pdf')) ? (
+        <div className="h-[70vh] w-full overflow-hidden bg-[#2a2926]">
+          <PdfReader
+            key={book.fileUrl}
+            fileUrl={book.fileUrl}
+            pageIndex={previewPdfPage}
+            fitToPage={false}
+            onPageChange={setPreviewPdfPage}
+            onDocumentLoad={(pageCount) => {
+              setPreviewPdfPageCount(pageCount);
+              setPreviewPdfPage((page) => Math.min(page, pageCount - 1));
+            }}
+          />
+        </div>
+      ) : previewContent ? (
+        <div className="whitespace-pre-wrap bg-[rgba(255,255,255,0.03)] p-6 text-sm leading-relaxed text-[#e4e2dd] max-h-[70vh] overflow-y-auto">
+          {previewContent}
+        </div>
+      ) : (
+        <div className="bg-[rgba(255,255,255,0.03)] p-6 text-sm leading-relaxed text-[#e4e2dd]">
+          <p>The uploaded book file is attached. Open it directly if you want to read it outside the preview panel.</p>
+          <a 
+            href={book.fileUrl} 
+            target="_blank" 
+            rel="noreferrer" 
+            className="mt-3 inline-block text-[#c9a96e] hover:underline"
+          >
+            Open uploaded file →
+          </a>
+        </div>
+      )}
+    </div>
+  </div>
+)}
+
+
         </div>
 
         {/* Right Column - Notes & Details */}
@@ -953,6 +1004,28 @@ export default function ReadBookPage() {
                 </div>
               )}
             </div>
+
+            {book.description && (
+              <div className="mt-6 border-t border-[rgba(255,255,255,0.08)] pt-5">
+                <h3 className="text-[11px] uppercase tracking-[0.2em] text-[#5c5a56] mb-3">
+                  Description
+                </h3>
+                <p className="text-sm leading-6 text-[#e4e2dd] whitespace-pre-wrap">
+                  {book.description}
+                </p>
+              </div>
+            )}
+
+            {book.story && (
+              <div className="mt-6 border-t border-[rgba(255,255,255,0.08)] pt-5">
+                <h3 className="text-[11px] uppercase tracking-[0.2em] text-[#5c5a56] mb-3">
+                  Story
+                </h3>
+                <p className="text-sm leading-6 text-[#e4e2dd] whitespace-pre-wrap">
+                  {book.story}
+                </p>
+              </div>
+            )}
           </div>
 
              {/* Book Cover Display */}

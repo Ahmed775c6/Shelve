@@ -6,7 +6,7 @@ import { authOptions } from '@/app/lib/auth'
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string; noteId: string } }
+  { params }: { params: Promise<{ noteId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -14,7 +14,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { noteId } = params;
+    const { noteId } = await params;
     const { content, page, isPrivate } = await req.json();
 
     await connectDB();
@@ -51,7 +51,7 @@ export async function PATCH(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string; noteId: string } }
+  { params }: { params: Promise<{ noteId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -59,7 +59,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { noteId } = params;
+    const { noteId } = await params;
     await connectDB();
 
     const result = await BookNote.findOneAndDelete({

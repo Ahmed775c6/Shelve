@@ -31,6 +31,7 @@ import {
   ComposedChart,
   Scatter,
   ScatterChart,
+  type PieLabelRenderProps,
 } from 'recharts';
 
 interface BookData {
@@ -863,7 +864,9 @@ export default function AnalyticsPage() {
                   outerRadius={90}
                   paddingAngle={2}
                   dataKey="value"
-                  label={({ name, percent  } : { name: string, percent: number }) => `${name} ${(percent  * 100).toFixed(0)}%`}
+                  label={({ name, percent }: PieLabelRenderProps) =>
+                    `${name ?? 'Unknown'} ${((percent ?? 0) * 100).toFixed(0)}%`
+                  }
                   labelLine={{ stroke: '#5c5a56' }}
                 >
                   {getCategoryDistribution().map((entry, index) => (

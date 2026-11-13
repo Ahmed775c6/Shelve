@@ -24,7 +24,7 @@ export default function BookCard({ book, onClick, onAction }: BookCardProps) {
       : 'bg-[rgba(201,169,110,0.15)] text-[#c9a96e]';
 
   return (
-    <div className="flex flex-col items-start gap-3">
+    <div className="group w-fit rounded-[28px] border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] p-4 transition duration-300 hover:border-[rgba(255,255,255,0.16)] hover:shadow-[0_20px_50px_rgba(0,0,0,0.18)]">
       <Book3D
         title={book.title}
         author={book.author}
@@ -44,7 +44,7 @@ export default function BookCard({ book, onClick, onAction }: BookCardProps) {
             <button
               type="button"
               onClick={() => onAction?.('read')}
-              className="rounded-full bg-[#c9a96e] px-3 py-1 text-[11px] font-medium text-[#1a1510]"
+              className="rounded-full bg-[var(--accent)] px-3 py-1 text-[11px] font-medium text-[#1a1510]"
             >
               Start reading
             </button>
@@ -53,7 +53,7 @@ export default function BookCard({ book, onClick, onAction }: BookCardProps) {
             <button
               type="button"
               onClick={() => onAction?.('archive')}
-              className="rounded-full bg-[#4a9e6b] px-3 py-1 text-[11px] font-medium text-white"
+              className="rounded-full bg-[var(--green)] px-3 py-1 text-[11px] font-medium text-white"
             >
               Mark finished
             </button>
@@ -62,7 +62,7 @@ export default function BookCard({ book, onClick, onAction }: BookCardProps) {
             <button
               type="button"
               onClick={() => onAction?.('details')}
-              className="rounded-full bg-[#1a1916] border border-[rgba(255,255,255,0.07)] px-3 py-1 text-[11px] font-medium text-[#9b9890]"
+              className="rounded-full bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.08)] px-3 py-1 text-[11px] font-medium text-[var(--ink-soft)]"
             >
               View details
             </button>

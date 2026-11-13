@@ -5,32 +5,40 @@ import { authOptions } from '@/app/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession(authOptions) as any;
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { prompt, context } = await req.json();
+    if (typeof prompt !== 'string' || !prompt.trim()) {
+      return NextResponse.json({ error: 'A writing prompt is required' }, { status: 400 });
+    }
 
     const response = await anthropic.messages.create({
       model: 'claude-3-sonnet-20240229',
       max_tokens: 500,
+      system: `You are a creative writing assistant helping a writer with their work.
+        Generate content based on the user's prompt. Keep the tone consistent and engaging.
+        Return your response as plain text that can be inserted into a document.`,
       messages: [
         {
-          role: 'system',
-          content: `You are a creative writing assistant helping a writer with their work.
-          Generate content based on the user's prompt. Keep the tone consistent and engaging.
-          Return your response as plain text that can be inserted into a document.`,
-        },
-        {
           role: 'user',
-          content: `Context: ${context || 'No context provided'}\n\nPrompt: ${prompt}`,
+          content: `Context: ${typeof context === 'string' ? context : 'No context provided'}\n\nPrompt: ${prompt}`,
         },
       ],
     });
 
+    const content = response.content
+      .filter((block) => block.type === 'text')
+      .map((block) => block.text)
+      .join('');
+    if (!content.trim()) {
+      throw new Error('AI response did not contain text');
+    }
+
     return NextResponse.json({
-      content: response.content[0].text,
+      content,
     });
   } catch (error) {
     console.error('AI writing assist error:', error);

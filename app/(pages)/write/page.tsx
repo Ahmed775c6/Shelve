@@ -3,7 +3,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
-import { IWriting } from '../../models/Writing';
 import { 
   Bold, Italic, Underline, Strikethrough, 
   Heading1, Heading2, Heading3, Heading4,
@@ -46,6 +45,14 @@ import { TaskList } from '@tiptap/extension-task-list';
 import { TaskItem } from '@tiptap/extension-task-item';
 import { Typography } from '@tiptap/extension-typography';
 
+interface WritingEntry {
+  _id: string;
+  title: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Color options
 const TEXT_COLORS = [
   '#f0ede8', '#9b9890', '#5c5a56', '#c9a96e', 
@@ -83,8 +90,8 @@ const FONT_SIZES = [
 
 export default function WritePage() {
   const { data: session, status } = useSession();
-  const [writings, setWritings] = useState<IWriting[]>([]);
-  const [selectedWriting, setSelectedWriting] = useState<IWriting | null>(null);
+  const [writings, setWritings] = useState<WritingEntry[]>([]);
+  const [selectedWriting, setSelectedWriting] = useState<WritingEntry | null>(null);
   const [title, setTitle] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -231,7 +238,7 @@ export default function WritePage() {
     return null;
   }
 
-  const handleSelectWriting = (writing: IWriting) => {
+  const handleSelectWriting = (writing: WritingEntry) => {
     setSelectedWriting(writing);
     setTitle(writing.title);
     if (editor) {

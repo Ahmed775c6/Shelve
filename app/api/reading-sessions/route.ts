@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import connectDB from '@/app/lib/mongodb';
+import Book from '@/app/models/book';
 import ReadingSession from '@/app/models/ReadingSession';
 import { authOptions } from '@/app/lib/auth';
 
@@ -17,10 +18,14 @@ export async function GET(req: NextRequest) {
     const sessions = await ReadingSession.find({
       userId: session.user.id,
     })
-      .populate('bookId', 'title author')
+      .populate({
+        path: 'bookId',
+        match: { userId: session.user.id },
+        select: 'title author',
+      })
       .sort({ lastReadAt: -1 });
 
-    return NextResponse.json(sessions);
+    return NextResponse.json(sessions.filter((readingSession) => readingSession.bookId));
   } catch (error) {
     console.error('Error fetching reading sessions:', error);
     return NextResponse.json(
@@ -37,11 +42,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const data = await req.json();
+    const { bookId, currentPage = 0, pagesRead = 0 } = await req.json();
+    if (
+      typeof bookId !== 'string' ||
+      !Number.isInteger(currentPage) ||
+      currentPage < 0 ||
+      !Number.isInteger(pagesRead) ||
+      pagesRead < 0
+    ) {
+      return NextResponse.json({ error: 'Invalid reading session' }, { status: 400 });
+    }
+
     await connectDB();
 
+    const book = await Book.findOne({ _id: bookId, userId: session.user.id });
+    if (!book) {
+      return NextResponse.json({ error: 'Book not found' }, { status: 404 });
+    }
+
     const readingSession = new ReadingSession({
-      ...data,
+      bookId,
+      currentPage,
+      pagesRead,
       userId: session.user.id,
     });
 

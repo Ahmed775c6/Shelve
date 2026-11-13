@@ -43,12 +43,14 @@ export default function SignInPage() {
   };
 
   return (
-    <div className="w-full max-w-md bg-[#1a1916] border border-[rgba(255,255,255,0.07)] rounded-xl p-6 sm:p-8">
+    <div className="w-full md:grid grid-cols-2 ">
+         <img src={"/1.jpg"} className='w-full h-full object-cover md:flex hidden' />
+           <div className="w-full   h-full bg-[#1a1916] border border-[rgba(255,255,255,0.07)]  p-6 sm:p-8">
       <div className="text-center mb-8">
         <div className="w-12 h-12 bg-[#c9a96e] rounded-lg flex items-center justify-center text-2xl mx-auto mb-4">
           📚
         </div>
-        <h1 className="font-serif text-2xl text-[#f0ede8] mb-1">Welcome back</h1>
+        <h1 className="font-bold text-2xl text-[#f0ede8] mb-1">Welcome back</h1>
         <p className="text-sm text-[#9b9890]">Sign in to your Shelve library</p>
       </div>
 
@@ -71,7 +73,7 @@ export default function SignInPage() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
               required
-              className="w-full bg-[#0f0e0c] border border-[rgba(255,255,255,0.07)] rounded-lg pl-10 pr-3 py-2.5 text-sm text-[#f0ede8] placeholder:text-[#5c5a56] focus:border-[#c9a96e] outline-none transition-colors"
+              className="w-full h-14 bg-[#0f0e0c] border border-[rgba(255,255,255,0.07)] rounded-xs pl-10 pr-3 py-2.5 text-sm text-[#f0ede8] placeholder:text-[#5c5a56] focus:border-[#c9a96e] outline-none transition-colors"
             />
           </div>
         </div>
@@ -88,7 +90,7 @@ export default function SignInPage() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter your password"
               required
-              className="w-full bg-[#0f0e0c] border border-[rgba(255,255,255,0.07)] rounded-lg pl-10 pr-10 py-2.5 text-sm text-[#f0ede8] placeholder:text-[#5c5a56] focus:border-[#c9a96e] outline-none transition-colors"
+              className="w-full h-14 bg-[#0f0e0c] border border-[rgba(255,255,255,0.07)] rounded-xs pl-10 pr-10 py-2.5 text-sm text-[#f0ede8] placeholder:text-[#5c5a56] focus:border-[#c9a96e] outline-none transition-colors"
             />
             <button
               type="button"
@@ -103,7 +105,7 @@ export default function SignInPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-2.5 bg-[#c9a96e] text-[#1a1510] rounded-lg text-sm font-medium hover:bg-[#d4b47a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full py-2.5 bg-[#c9a96e] text-[#1a1510] rounded-xs text-sm font-medium hover:bg-[#d4b47a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? 'Signing in...' : 'Sign In'}
         </button>
@@ -146,5 +148,7 @@ export default function SignInPage() {
         </p>
       </div>
     </div>
+    </div>
+  
   );
 }

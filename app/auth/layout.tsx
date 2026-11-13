@@ -2,7 +2,7 @@
 
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
-import Providers from '../components/providers/Providers';
+
 export default function AuthLayout({
   children,
 }: {
@@ -16,10 +16,10 @@ export default function AuthLayout({
   }
 
   return (
-    <div className="min-h-screen bg-[#0f0e0c] w-full flex items-center justify-center p-4">
-      <div className="w-full ">
+    <div className="min-h-screen bg-[#0f0e0c] w-full  flex h-screen  ">
+  
         {children}
-      </div>
+     
     </div>
   );
 }

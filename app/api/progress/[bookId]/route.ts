@@ -15,7 +15,8 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { currentPage } = await req.json();
+    const body = await req.json();
+    const { currentPage } = body ?? {};
     const { bookId } = await params;
 
     await connectDB();
@@ -25,6 +26,14 @@ export async function PATCH(
       return NextResponse.json({ error: 'Book not found' }, { status: 404 });
     }
 
+    if (
+      !Number.isInteger(currentPage) ||
+      currentPage < 0 ||
+      (currentBook.totalPages > 0 && currentPage > currentBook.totalPages)
+    ) {
+      return NextResponse.json({ error: 'Invalid page number' }, { status: 400 });
+    }
+
     const previousPage = currentBook.currentPage || 0;
     currentBook.currentPage = currentPage;
     currentBook.status = 'reading';
@@ -32,7 +41,7 @@ export async function PATCH(
       currentBook.startedAt = new Date();
     }
 
-    if (currentPage >= currentBook.totalPages) {
+    if (currentBook.totalPages > 0 && currentPage >= currentBook.totalPages) {
       currentBook.status = 'archived';
       currentBook.finishedAt = new Date();
       currentBook.currentPage = currentBook.totalPages;
@@ -53,7 +62,7 @@ export async function PATCH(
           pagesRead,
         },
       },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
 
     return NextResponse.json({

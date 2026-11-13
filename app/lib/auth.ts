@@ -64,13 +64,14 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     async session({ session, token }) {
+
       if (session.user) {
-        (session.user as any).id = token.id;
+        session.user.id = token.id;
         session.user.name = token.name as string;
         session.user.email = token.email as string;
         session.user.image = token.image as string;
       }
-      return session;
+      return session ;
     },
   },
   pages: {

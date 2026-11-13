@@ -66,53 +66,85 @@ export default function LibraryPage() {
   });
 
   const filters = ['all', 'reading', 'unread', 'fantasy', 'scifi', 'selfhelp'];
+  const totals = {
+    reading: books.filter((book: any) => book.status === 'reading').length,
+    unread: books.filter((book: any) => book.status === 'unread').length,
+    archived: books.filter((book: any) => book.status === 'archived').length,
+  };
 
   return (
-    <div className="page-shell">
-      <div className="mb-7">
-        <h1 className="font-serif text-2xl text-[#f0ede8] mb-1">My library</h1>
-        <p className="text-sm text-[#9b9890]">{books.length} books across all categories</p>
-      </div>
+    <div className="library-page min-h-screen relative overflow-hidden px-4 py-10 sm:px-6 lg:px-10">
+      <div className="page-frame" />
+      <div className="library-hero-word">Library</div>
+      <div className="relative z-10 mx-auto max-w-7xl">
+        <div className="library-masthead flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+          <div>
+            <p className="eyebrow mb-3">Collection overview</p>
+            <h1 className="font-serif text-4xl sm:text-5xl lg:text-[4rem] leading-[0.92] text-[var(--ink)]">
+              My library
+            </h1>
+            <p className="mt-4 max-w-2xl text-sm text-[var(--ink-soft)]">
+              {books.length} volumes across all categories, surfaced in a tactile reading shelf.
+            </p>
+          </div>
 
-      <div className="flex items-center gap-2.5 mb-6 flex-wrap">
-        <div className="flex-1 min-w-50">
-          <div className="flex items-center gap-2 bg-[#1a1916] border border-[rgba(255,255,255,0.07)] rounded-lg px-3 py-2.25 text-[#9b9890] text-sm">
-            <input
-              type="text"
-              placeholder="Search your library…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="flex-1 bg-transparent border-none outline-none text-[#f0ede8] placeholder:text-[#5c5a56]"
-            />
+          <div className="flex flex-wrap gap-3 text-sm text-[var(--ink-soft)]">
+            <div>Reading: {totals.reading}</div>
+            <div>Unread: {totals.unread}</div>
+            <div>Archived: {totals.archived}</div>
           </div>
         </div>
-        {filters.map(f => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${
-              filter === f
-                ? 'bg-[rgba(201,169,110,0.1)] text-[#c9a96e] border border-[rgba(201,169,110,0.25)]'
-                : 'bg-[#1a1916] text-[#9b9890] border border-[rgba(255,255,255,0.07)] hover:border-[rgba(255,255,255,0.12)] hover:text-[#f0ede8]'
-            }`}
-          >
-            {f.charAt(0).toUpperCase() + f.slice(1)}
-          </button>
-        ))}
-      </div>
 
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-6">
-        {filteredBooks.length > 0 ? (
-          filteredBooks.map((book :any) => (
-            <BookCard key={book._id} book={book} onAction={(action) => handleAction(book._id, action)} onClick={() => router.push(`/read/${book._id}`)} />
-          ))
-        ) : (
-          <div className="col-span-full text-center py-15 text-[#5c5a56]">
-            <div className="text-5xl mb-3 opacity-40">📭</div>
-            <div className="text-sm text-[#9b9890] mb-1.5">No books found</div>
-            <div className="text-sm">Try a different filter or search</div>
+        <div className="glass-panel mt-10 rounded-[28px] border border-[rgba(255,255,255,0.08)] bg-[rgba(244,236,219,0.08)] p-6 backdrop-blur-xl shadow-[0_32px_90px_rgba(0,0,0,0.14)]">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-3 rounded-3xl border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.05)] px-4 py-3 text-sm text-[var(--ink-soft)]">
+                <input
+                  type="text"
+                  placeholder="Search your library…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="flex-1 bg-transparent border-none outline-none text-[var(--ink)] placeholder:text-[var(--ink-soft)]"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {filters.map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                    filter === f
+                      ? 'border border-[rgba(201,169,110,0.25)] bg-[rgba(201,169,110,0.12)] text-[var(--accent)]'
+                      : 'border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] text-[var(--ink-soft)] hover:border-[rgba(255,255,255,0.16)] hover:text-[var(--ink)]'
+                  }`}
+                >
+                  {f.charAt(0).toUpperCase() + f.slice(1)}
+                </button>
+              ))}
+            </div>
           </div>
-        )}
+        </div>
+
+        <div className="flex flex-wrap gap-3 p-8">
+          {filteredBooks.length > 0 ? (
+            filteredBooks.map((book: any) => (
+              <BookCard
+                key={book._id}
+                book={book}
+                onAction={(action) => handleAction(book._id, action)}
+                onClick={() => router.push(`/read/${book._id}`)}
+              />
+            ))
+          ) : (
+            <div className="col-span-full text-center py-20 text-(--ink-soft)">
+              <div className="text-5xl mb-3 opacity-40">📭</div>
+              <div className="text-sm mb-1.5">No books found</div>
+              <div className="text-sm">Try a different filter or search</div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

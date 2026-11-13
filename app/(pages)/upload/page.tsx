@@ -17,6 +17,8 @@ export default function UploadPage() {
     author: '',
     category: '',
     totalPages: '',
+    description: '',
+    story: '',
     coverColor: 'c-blue',
   });
 
@@ -89,6 +91,8 @@ export default function UploadPage() {
         author: formData.author,
         category: formData.category,
         totalPages: parseInt(formData.totalPages) || 0,
+        description: formData.description.trim(),
+        story: formData.story.trim() || undefined,
         coverColor: formData.coverColor,
         fileUrl: uploadResult.fileUrl,
         fileType: file.type.split('/')[1],
@@ -223,6 +227,7 @@ export default function UploadPage() {
                   <option value="Science">Science</option>
                   <option value="Biography">Biography</option>
                   <option value="Philosophy">Philosophy</option>
+                      <option value="Psychologie">Psychologie</option>
                 </select>
               </div>
               <div>
@@ -236,6 +241,34 @@ export default function UploadPage() {
                   placeholder="e.g. 310"
                   required
                   className="w-full bg-[#0f0e0c] border border-[rgba(255,255,255,0.07)] rounded-lg px-3 py-2 text-sm text-[#f0ede8] placeholder:text-[#5c5a56] focus:border-[#c9a96e] outline-none transition-colors"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[11px] text-[#5c5a56] uppercase tracking-wider mb-1.5">
+                  Description
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="A brief overview of the book"
+                  rows={3}
+                  className="w-full bg-[#0f0e0c] border border-[rgba(255,255,255,0.07)] rounded-lg px-3 py-2 text-sm text-[#f0ede8] placeholder:text-[#5c5a56] focus:border-[#c9a96e] outline-none transition-colors resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] text-[#5c5a56] uppercase tracking-wider mb-1.5">
+                  Story (optional)
+                </label>
+                <textarea
+                  value={formData.story}
+                  onChange={(e) => setFormData({ ...formData, story: e.target.value })}
+                  placeholder="Tell the story or premise of this book"
+                  rows={4}
+                  className="w-full bg-[#0f0e0c] border border-[rgba(255,255,255,0.07)] rounded-lg px-3 py-2 text-sm text-[#f0ede8] placeholder:text-[#5c5a56] focus:border-[#c9a96e] outline-none transition-colors resize-none"
                 />
               </div>
             </div>

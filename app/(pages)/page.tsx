@@ -5,8 +5,8 @@ import Link from 'next/link';
 import { redirect, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 
-import BookCard from './components/book/BookCard';
-import { IBook } from './models/book';
+import BookCard from '../components/book/BookCard';
+import { IBook } from '../models/book';
 import { Book } from 'lucide-react';
 
 
@@ -24,7 +24,7 @@ export default function OverviewPage() {
 
   useEffect(() => {
     if (status === 'unauthenticated') {
-      console.log('tet')
+
             redirect('/auth/signin');
     }
 
@@ -100,7 +100,8 @@ export default function OverviewPage() {
   const recentBooks = Array.isArray(books) ? books.slice(0, 6) : [];
 
   return (
-    <div className="page-shell">
+<>
+{loading ? "laoding .." :     <div className="page-shell">
       <div className="mb-7">
         <h1 className="font-serif text-2xl text-[#f0ede8] mb-1">
           Good evening, Reader 🌙
@@ -228,6 +229,8 @@ export default function OverviewPage() {
           ))}
         </div>
       </div>
-    </div>
+    </div>}
+
+</>
   );
 }

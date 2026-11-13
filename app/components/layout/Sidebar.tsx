@@ -6,10 +6,18 @@ import { useSession } from 'next-auth/react';
 import { 
   LayoutGrid, Library, BookOpen, Archive, 
   PenTool, UploadCloud, Sparkles, MessageSquare,BarChart3,Globe,
-  Settings, User
+  Settings, User, ChevronLeft, ChevronRight
 } from 'lucide-react';
 
-export default function Sidebar() {
+interface SidebarProps {
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
+}
+
+export default function Sidebar({
+  isCollapsed = true,
+  onToggleCollapse,
+}: SidebarProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
 
@@ -32,17 +40,28 @@ export default function Sidebar() {
 
   return (
     <>
-      <aside className="hidden lg:flex w-60 bg-[#1a1916] border-r border-[rgba(255,255,255,0.07)] fixed left-0 top-0 bottom-0 z-110 flex-col">
-        <div className="p-6 border-b border-[rgba(255,255,255,0.07)]">
+      <aside className={`hidden lg:flex ${isCollapsed ? 'w-16' : 'w-60'} transition-[width] duration-300 bg-[#1a1916] border-r border-[rgba(255,255,255,0.07)] fixed left-0 top-0 bottom-0 z-110 flex-col`}>
+        <div className={`flex items-center border-b border-[rgba(255,255,255,0.07)] ${isCollapsed ? 'justify-center p-4' : 'justify-between p-6'}`}>
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-[#c9a96e] rounded-lg flex items-center justify-center text-sm">
-              📚
+            <img src="/icon.png" alt="logo" width={32} height={32} />
             </div>
-            <div>
+            {!isCollapsed && <div>
               <div className="font-serif text-lg text-[#f0ede8]">Shelve</div>
               <div className="text-[11px] text-[#5c5a56]">Personal Library</div>
-            </div>
+            </div>}
           </div>
+          {onToggleCollapse && (
+            <button
+              type="button"
+              onClick={onToggleCollapse}
+              aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              className={`rounded-lg p-1.5 text-[#9b9890] transition-colors hover:bg-[#222119] hover:text-[#f0ede8] ${isCollapsed ? 'absolute -right-3 top-5 z-10 border border-[rgba(255,255,255,0.07)] bg-[#1a1916]' : ''}`}
+            >
+              {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+            </button>
+          )}
         </div>
 
         <nav className="flex-1 py-4 overflow-y-auto">
@@ -52,15 +71,19 @@ export default function Sidebar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 px-6 py-2.5 transition-colors border-l-2 ${
+                title={isCollapsed ? item.label : undefined}
+                aria-label={isCollapsed ? item.label : undefined}
+                className={`flex items-center gap-3 py-2.5 transition-colors border-l-2 ${
+                  isCollapsed ? 'justify-center px-0' : 'px-6'
+                } ${
                   isActive 
                     ? 'border-[#c9a96e] bg-[rgba(201,169,110,0.1)] text-[#c9a96e]' 
                     : 'border-transparent text-[#9b9890] hover:text-[#f0ede8] hover:bg-[#222119]'
                 }`}
               >
-                <item.icon size={16} />
-                <span className="text-sm">{item.label}</span>
-                {item.badge && (
+                <item.icon size={16} className="shrink-0" />
+                {!isCollapsed && <span className="text-sm">{item.label}</span>}
+                {!isCollapsed && item.badge && (
                   <span className="ml-auto text-[10px] bg-[rgba(201,169,110,0.1)] text-[#c9a96e] px-2 py-0.5 rounded-full">
                     {item.badge}
                   </span>
@@ -73,7 +96,10 @@ export default function Sidebar() {
         <div className="mt-auto p-4 border-t border-[rgba(255,255,255,0.07)]">
           <Link
             href="/settings"
-            className="flex items-center gap-3 px-2 py-2.5 rounded-lg hover:bg-[#222119] transition-colors group"
+            title={isCollapsed ? 'Settings' : undefined}
+            className={`flex items-center gap-3 py-2.5 rounded-lg hover:bg-[#222119] transition-colors group ${
+              isCollapsed ? 'justify-center px-0' : 'px-2'
+            }`}
           >
             <div className="relative shrink-0">
               {user?.image ? (
@@ -89,15 +115,15 @@ export default function Sidebar() {
               )}
               <div className="absolute bottom-0 right-0 w-3 h-3 bg-[#4a9e6b] rounded-full border-2 border-[#1a1916]"></div>
             </div>
-            <div className="flex-1 min-w-0">
+            {!isCollapsed && <div className="flex-1 min-w-0">
               <div className="text-sm font-medium text-[#f0ede8] truncate group-hover:text-[#c9a96e] transition-colors">
                 {user?.name || 'User'}
               </div>
               <div className="text-xs text-[#5c5a56] truncate">
                 {user?.email || ''}
               </div>
-            </div>
-            <Settings size={14} className="text-[#5c5a56] group-hover:text-[#f0ede8] transition-colors shrink-0" />
+            </div>}
+            {!isCollapsed && <Settings size={14} className="text-[#5c5a56] group-hover:text-[#f0ede8] transition-colors shrink-0" />}
           </Link>
         </div>
       </aside>

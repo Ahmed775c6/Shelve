@@ -8,7 +8,7 @@ import ReadingSession from '@/app/models/ReadingSession';
 
 export async function GET(req: NextRequest, { params }: { params: any }) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession(authOptions) as any;
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -37,13 +37,45 @@ export async function PATCH(req: NextRequest, { params }: { params: any }) {
 
     const { id } = await params;
     const data = await req.json();
+    const editableFields = [
+      'title',
+      'author',
+      'category',
+      'coverColor',
+      'coverImage',
+      'fileUrl',
+      'fileType',
+      'totalPages',
+      'currentPage',
+      'tags',
+      'status',
+      'uploadedAt',
+      'startedAt',
+      'finishedAt',
+      'rating',
+      'notes',
+      'description',
+      'story',
+    ] as const;
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+      return NextResponse.json({ error: 'Invalid book update' }, { status: 400 });
+    }
+
+    const updates = Object.fromEntries(
+      editableFields
+        .filter((field) => Object.hasOwn(data, field))
+        .map((field) => [field, data[field]])
+    );
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: 'No editable fields provided' }, { status: 400 });
+    }
 
     await connectDB();
 
     const updated = await Book.findOneAndUpdate(
       { _id: id, userId: session.user.id },
-      { $set: data },
-      { returnDocument: 'after' }
+      { $set: updates },
+      { returnDocument: 'after', runValidators: true }
     );
 
     if (!updated) {
@@ -72,7 +104,15 @@ export async function DELETE(
 
     const { id } = await params;
     await connectDB();
-    
+
+    const book = await Book.findOne({
+      _id: id,
+      userId: session.user.id,
+    });
+    if (!book) {
+      return NextResponse.json({ error: 'Book not found' }, { status: 404 });
+    }
+
     // Delete all notes associated with the book
     await BookNote.deleteMany({
       bookId: id,
@@ -85,15 +125,7 @@ export async function DELETE(
       userId: session.user.id,
     });
 
-    // Delete the book itself
-    const book = await Book.findOneAndDelete({
-      _id: id,
-      userId: session.user.id,
-    });
-
-    if (!book) {
-      return NextResponse.json({ error: 'Book not found' }, { status: 404 });
-    }
+    await Book.deleteOne({ _id: id, userId: session.user.id });
 
     return NextResponse.json({ 
       success: true, 

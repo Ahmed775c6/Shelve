@@ -205,7 +205,7 @@ export default function AskPage() {
                 className={`flex gap-3 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}
               >
                 <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-medium ${
+                  className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-medium ${
                     message.role === 'assistant'
                       ? 'bg-[rgba(201,169,110,0.1)] text-[#c9a96e] border border-[rgba(201,169,110,0.25)]'
                       : 'bg-[#222119] text-[#9b9890] border border-[rgba(255,255,255,0.07)]'
@@ -229,6 +229,7 @@ export default function AskPage() {
                         'Summarize The Name of the Wind',
                         'What are the main themes in 1984?',
                         'Recommend books similar to Dune',
+                        'Summiraze a book from reader laibary '
                       ].map((preset) => (
                         <button
                           key={preset}

@@ -1,15 +1,24 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { IBook } from '@/app/models/book';
 import { 
   BookOpen, Clock, ChevronLeft, ChevronRight, 
-  Bookmark, Share2, Settings, Sun, Moon, 
-  ZoomIn, ZoomOut, Menu, X, FileText, 
+  Share2, Settings, ZoomIn, ZoomOut, Menu, FileText, Maximize2, Minimize2,
   Download, ExternalLink, Loader2
 } from 'lucide-react';
+
+const PdfReader = dynamic(() => import('@/app/components/reader/PdfReader'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-full w-full items-center justify-center text-[#9b9890]">
+      Loading PDF reader...
+    </div>
+  ),
+});
 
 export default function ReadPage() {
   const { data: session, status } = useSession();
@@ -21,6 +30,8 @@ export default function ReadPage() {
   const [theme, setTheme] = useState<'light' | 'dark' | 'sepia'>('dark');
   const [showSidebar, setShowSidebar] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
+  const [isFocusMode, setIsFocusMode] = useState(false);
+  const [pdfPageCount, setPdfPageCount] = useState(0);
   const [previewContent, setPreviewContent] = useState<string | null>(null);
   const [contentLoading, setContentLoading] = useState(false);
   const [contentError, setContentError] = useState<string | null>(null);
@@ -63,6 +74,7 @@ export default function ReadPage() {
     
     const savedShowSidebar = localStorage.getItem('reader-sidebar');
     if (savedShowSidebar) setShowSidebar(savedShowSidebar === 'true');
+    else if (window.innerWidth < 768) setShowSidebar(false);
   }, [status]);
 
   const fetchOpenLibraryPreview = async (book: IBook) => {
@@ -201,6 +213,17 @@ export default function ReadPage() {
     loadPreviewContent();
   }, [selectedBook?._id, selectedBook?.fileUrl, selectedBook?.fileType, selectedBook?.title, selectedBook?.author, selectedBook?.description]);
 
+  useEffect(() => {
+    if (!isFocusMode) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsFocusMode(false);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFocusMode]);
+
   if (status === 'loading' || loading) {
     return (
       <div className="page-shell flex items-center justify-center min-h-100">
@@ -216,12 +239,14 @@ export default function ReadPage() {
   const handleBookSelect = (book: IBook) => {
     setSelectedBook(book);
     setCurrentPage(book.currentPage || 0);
+    setPdfPageCount(0);
   };
 
   const handlePageChange = (newPage: number) => {
     if (!selectedBook) return;
     
-    const clampedPage = Math.max(0, Math.min(newPage, selectedBook.totalPages));
+    const totalPages = pdfPageCount || selectedBook.totalPages;
+    const clampedPage = Math.max(0, Math.min(newPage, totalPages));
     setCurrentPage(clampedPage);
     
     // Auto-save progress
@@ -279,8 +304,10 @@ export default function ReadPage() {
   };
 
   const getProgressPercentage = () => {
-    if (!selectedBook || selectedBook.totalPages === 0) return 0;
-    return Math.round((currentPage / selectedBook.totalPages) * 100);
+    if (!selectedBook) return 0;
+    const totalPages = pdfPageCount || selectedBook.totalPages;
+    if (totalPages === 0) return 0;
+    return Math.round((currentPage / totalPages) * 100);
   };
 
   const formatTime = (minutes: number) => {
@@ -292,7 +319,7 @@ export default function ReadPage() {
   // Calculate estimated reading time remaining
   const getEstimatedTimeRemaining = () => {
     if (!selectedBook) return '--';
-    const pagesRemaining = selectedBook.totalPages - currentPage;
+    const pagesRemaining = (pdfPageCount || selectedBook.totalPages) - currentPage;
     // Assuming average reading speed of 2 minutes per page
     const minutes = pagesRemaining * 2;
     return formatTime(minutes);
@@ -317,7 +344,7 @@ export default function ReadPage() {
 
               {contentLoading ? (
                 <div className="flex items-center justify-center py-12">
-                  <Loader2 className="animate-spin text-[#c9a96e]" size={32} />
+                  <Loader2 className="text-[#c9a96e]" size={32} />
                 </div>
               ) : contentError ? (
                 <div className="rounded-xl border border-[rgba(224,82,82,0.25)] bg-[rgba(224,82,82,0.1)] p-6 text-center">
@@ -358,15 +385,20 @@ export default function ReadPage() {
     const isEpub = fileType.includes('epub');
     const isMobi = fileType.includes('mobi');
 
-    // For PDF files - show in iframe
+    // Render PDFs as individual pages for controlled scrolling and page turns.
     if (isPdf) {
       return (
-        <div className="h-full w-full overflow-hidden bg-white">
-          <iframe
-            src={`${selectedBook.fileUrl}#page=${currentPage}`}
-            title={selectedBook.title}
-            className="h-full w-full border-0"
-            style={{ minHeight: 'calc(100vh - 200px)' }}
+        <div className="h-full w-full overflow-hidden bg-[#2a2926]">
+          <PdfReader
+            key={selectedBook.fileUrl}
+            fileUrl={selectedBook.fileUrl}
+            pageIndex={currentPage}
+            fitToPage={isFocusMode}
+            onPageChange={handlePageChange}
+            onDocumentLoad={(pageCount) => {
+              setPdfPageCount(pageCount);
+              setCurrentPage((page) => Math.min(page, pageCount - 1));
+            }}
           />
         </div>
       );
@@ -383,7 +415,7 @@ export default function ReadPage() {
 
             {contentLoading ? (
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="animate-spin text-[#c9a96e]" size={32} />
+                <Loader2 className="text-[#c9a96e]" size={32} />
               </div>
             ) : contentError ? (
               <div className="rounded-xl border border-[rgba(224,82,82,0.25)] bg-[rgba(224,82,82,0.1)] p-6 text-center">
@@ -447,7 +479,7 @@ export default function ReadPage() {
                   href={selectedBook.fileUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center gap-2 px-4 py-2 bg-[#c9a96e] text-[#1a1510] rounded-lg text-sm font-medium hover:bg-[#d4b47a] transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 bg-[#c9a96e] text-[#1a1510] rounded-lg text-sm font-medium hover:bg-[#d4b47a]"
                 >
                   <Download size={14} />
                   Download File
@@ -456,7 +488,7 @@ export default function ReadPage() {
                   href={selectedBook.fileUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center gap-2 px-4 py-2 bg-[#222119] border border-[rgba(255,255,255,0.07)] text-[#9b9890] rounded-lg text-sm hover:text-[#f0ede8] transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 bg-[#222119] border border-[rgba(255,255,255,0.07)] text-[#9b9890] rounded-lg text-sm hover:text-[#f0ede8]"
                 >
                   <ExternalLink size={14} />
                   Open in Browser
@@ -490,7 +522,7 @@ export default function ReadPage() {
                 href={selectedBook.fileUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center gap-2 px-4 py-2 bg-[#c9a96e] text-[#1a1510] rounded-lg text-sm font-medium hover:bg-[#d4b47a] transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-[#c9a96e] text-[#1a1510] rounded-lg text-sm font-medium hover:bg-[#d4b47a]"
               >
                 <Download size={14} />
                 Download File
@@ -499,7 +531,7 @@ export default function ReadPage() {
                 href={selectedBook.fileUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center gap-2 px-4 py-2 bg-[#222119] border border-[rgba(255,255,255,0.07)] text-[#9b9890] rounded-lg text-sm hover:text-[#f0ede8] transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-[#222119] border border-[rgba(255,255,255,0.07)] text-[#9b9890] rounded-lg text-sm hover:text-[#f0ede8]"
               >
                 <ExternalLink size={14} />
                 Open in Browser
@@ -526,11 +558,16 @@ export default function ReadPage() {
   }
 
   const progress = getProgressPercentage();
+  const totalPages = pdfPageCount || selectedBook.totalPages;
 
   return (
-    <div className="flex h-[calc(100vh-52px)]">
+    <div className={`flex ${
+      isFocusMode
+        ? 'fixed inset-0 z-200 h-dvh w-screen bg-[#0f0e0c]'
+        : 'h-[calc(100vh-52px)]'
+    }`}>
       {/* Sidebar - Book List */}
-      <div className={`${showSidebar ? 'w-70' : 'w-0'} transition-all duration-300 overflow-hidden border-r border-[rgba(255,255,255,0.07)] bg-[#1a1916]`}>
+      {!isFocusMode && <div className={`${showSidebar ? 'w-70' : 'w-0'} overflow-hidden border-r border-[rgba(255,255,255,0.07)] bg-[#1a1916]`}>
         <div className="p-4 h-full overflow-y-auto">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-medium text-[#9b9890] uppercase tracking-wider">
@@ -549,7 +586,7 @@ export default function ReadPage() {
                 <div
                   key={book?._id}
                   onClick={() => handleBookSelect(book)}
-                  className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                  className={`p-3 rounded-lg cursor-pointer ${
                     selectedBook?._id === book._id
                       ? 'bg-[#222119] border border-[rgba(201,169,110,0.25)]'
                       : 'hover:bg-[#222119]'
@@ -577,7 +614,7 @@ export default function ReadPage() {
                       <div className="mt-1.5">
                         <div className="h-1 bg-[rgba(255,255,255,0.07)] rounded overflow-hidden">
                           <div 
-                            className="h-full bg-[#c9a96e] rounded transition-all"
+                            className="h-full bg-[#c9a96e] rounded"
                             style={{ width: `${bookProgress}%` }}
                           ></div>
                         </div>
@@ -599,18 +636,21 @@ export default function ReadPage() {
             </div>
           )}
         </div>
-      </div>
+      </div>}
 
       {/* Main Reader Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex min-w-0 flex-1 flex-col">
         {/* Reader Toolbar */}
-        <div className="flex items-center gap-4 px-6 py-3 border-b border-[rgba(255,255,255,0.07)] bg-[#1a1916]">
-          <button
-            onClick={toggleSidebar}
-            className="p-1.5 text-[#9b9890] hover:text-[#f0ede8] transition-colors"
-          >
-            {showSidebar ? <Menu size={18} /> : <Menu size={18} />}
-          </button>
+        <div className="flex items-center gap-2 px-3 py-3 border-b border-[rgba(255,255,255,0.07)] bg-[#1a1916] sm:gap-4 sm:px-6">
+          {!isFocusMode && (
+            <button
+              onClick={toggleSidebar}
+              aria-label={showSidebar ? 'Hide reading list' : 'Show reading list'}
+              className="p-1.5 text-[#9b9890] hover:text-[#f0ede8]"
+            >
+              {showSidebar ? <Menu size={18} /> : <Menu size={18} />}
+            </button>
+          )}
 
           <div className="flex-1">
             <div className="text-sm text-[#f0ede8]">{selectedBook.title}</div>
@@ -621,17 +661,19 @@ export default function ReadPage() {
             <button
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage <= 0}
-              className="p-1.5 text-[#9b9890] hover:text-[#f0ede8] transition-colors disabled:opacity-30"
+              aria-label="Previous page"
+              className="p-1.5 text-[#9b9890] hover:text-[#f0ede8] disabled:opacity-30"
             >
               <ChevronLeft size={18} />
             </button>
             <span className="text-xs text-[#5c5a56]">
-              {currentPage} / {selectedBook.totalPages}
+              {currentPage + 1} / {totalPages}
             </span>
             <button
               onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage >= selectedBook.totalPages}
-              className="p-1.5 text-[#9b9890] hover:text-[#f0ede8] transition-colors disabled:opacity-30"
+              disabled={currentPage >= totalPages - 1}
+              aria-label="Next page"
+              className="p-1.5 text-[#9b9890] hover:text-[#f0ede8] disabled:opacity-30"
             >
               <ChevronRight size={18} />
             </button>
@@ -639,44 +681,61 @@ export default function ReadPage() {
 
           <div className="flex items-center gap-1.5">
             <button
-              onClick={() => setShowSettings(!showSettings)}
-              className="p-1.5 text-[#9b9890] hover:text-[#f0ede8] transition-colors"
-            >
-              <Settings size={16} />
-            </button>
-            <button
+              type="button"
               onClick={() => {
-                if (navigator.share) {
-                  navigator.share({
-                    title: selectedBook.title,
-                    text: `Reading ${selectedBook.title} by ${selectedBook.author}`,
-                  });
-                }
+                setIsFocusMode((focusMode) => !focusMode);
+                setShowSettings(false);
               }}
-              className="p-1.5 text-[#9b9890] hover:text-[#f0ede8] transition-colors"
+              aria-label={isFocusMode ? 'Exit focus mode' : 'Enter focus mode'}
+              title={isFocusMode ? 'Exit focus mode' : 'Read in focus mode'}
+              className="p-1.5 text-[#9b9890] hover:text-[#f0ede8]"
             >
-              <Share2 size={16} />
+              {isFocusMode ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
             </button>
+            {!isFocusMode && (
+              <>
+                <button
+                  onClick={() => setShowSettings(!showSettings)}
+                  aria-label="Reading settings"
+                  className="p-1.5 text-[#9b9890] hover:text-[#f0ede8]"
+                >
+                  <Settings size={16} />
+                </button>
+                <button
+                  onClick={() => {
+                    if (navigator.share) {
+                      navigator.share({
+                        title: selectedBook.title,
+                        text: `Reading ${selectedBook.title} by ${selectedBook.author}`,
+                      });
+                    }
+                  }}
+                  className="p-1.5 text-[#9b9890] hover:text-[#f0ede8]"
+                >
+                  <Share2 size={16} />
+                </button>
+              </>
+            )}
           </div>
         </div>
 
         {/* Settings Panel */}
-        {showSettings && (
+        {showSettings && !isFocusMode && (
           <div className="bg-[#1a1916] border-b border-[rgba(255,255,255,0.07)] p-4">
-            <div className="flex items-center justify-between max-w-3xl mx-auto">
+            <div className="flex flex-wrap items-center justify-between gap-4 max-w-3xl mx-auto">
               <div className="flex items-center gap-4">
                 <span className="text-xs text-[#9b9890]">Font size</span>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleFontSizeChange(-1)}
-                    className="p-1 text-[#9b9890] hover:text-[#f0ede8] transition-colors"
+                    className="p-1 text-[#9b9890] hover:text-[#f0ede8]"
                   >
                     <ZoomOut size={14} />
                   </button>
                   <span className="text-sm text-[#f0ede8] w-8 text-center">{fontSize}</span>
                   <button
                     onClick={() => handleFontSizeChange(1)}
-                    className="p-1 text-[#9b9890] hover:text-[#f0ede8] transition-colors"
+                    className="p-1 text-[#9b9890] hover:text-[#f0ede8]"
                   >
                     <ZoomIn size={14} />
                   </button>
@@ -688,21 +747,21 @@ export default function ReadPage() {
                 <div className="flex gap-1.5">
                   <button
                     onClick={() => handleThemeChange('light')}
-                    className={`w-6 h-6 rounded-full border-2 transition-colors ${
+                    className={`w-6 h-6 rounded-full border-2 ${
                       theme === 'light' ? 'border-[#c9a96e]' : 'border-transparent'
                     }`}
                     style={{ background: '#f5f0e8' }}
                   />
                   <button
                     onClick={() => handleThemeChange('sepia')}
-                    className={`w-6 h-6 rounded-full border-2 transition-colors ${
+                    className={`w-6 h-6 rounded-full border-2 ${
                       theme === 'sepia' ? 'border-[#c9a96e]' : 'border-transparent'
                     }`}
                     style={{ background: '#f4ecd8' }}
                   />
                   <button
                     onClick={() => handleThemeChange('dark')}
-                    className={`w-6 h-6 rounded-full border-2 transition-colors ${
+                    className={`w-6 h-6 rounded-full border-2 ${
                       theme === 'dark' ? 'border-[#c9a96e]' : 'border-transparent'
                     }`}
                     style={{ background: '#1c1a14' }}
@@ -715,7 +774,7 @@ export default function ReadPage() {
 
         {/* Reader Content */}
         <div 
-          className={`flex-1 overflow-hidden relative ${getThemeClasses()}`}
+          className={`min-h-0 flex-1 overflow-hidden relative ${getThemeClasses()}`}
           style={{ 
             fontSize: `${fontSize}px`,
             lineHeight: 1.85,
@@ -725,10 +784,10 @@ export default function ReadPage() {
         </div>
 
         {/* Bottom Progress Bar */}
-        <div className="relative">
+        {!isFocusMode && <div className="relative">
           <div className="h-0.5 bg-[rgba(255,255,255,0.07)]">
             <div 
-              className="h-full bg-[#c9a96e] transition-all duration-300"
+              className="h-full bg-[#c9a96e]"
               style={{ width: `${progress}%` }}
             ></div>
           </div>
@@ -740,14 +799,14 @@ export default function ReadPage() {
             <div className="flex items-center gap-4 text-xs text-[#5c5a56]">
               <span>{progress}% complete</span>
               <span>•</span>
-              <span>Page {currentPage} of {selectedBook.totalPages}</span>
+              <span>Page {currentPage + 1} of {totalPages}</span>
             </div>
             <div className="text-xs text-[#5c5a56]">
               <BookOpen size={12} className="inline mr-1" />
               {Math.round(currentPage / 30)} sessions
             </div>
           </div>
-        </div>
+        </div>}
       </div>
     </div>
   );

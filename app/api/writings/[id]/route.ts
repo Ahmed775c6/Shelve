@@ -42,13 +42,26 @@ export async function PATCH(
     }
 
     const data = await req.json();
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+      return NextResponse.json({ error: 'Invalid writing update' }, { status: 400 });
+    }
+
+    const updates = Object.fromEntries(
+      ['title', 'content', 'linkedBookId']
+        .filter((field) => Object.hasOwn(data, field))
+        .map((field) => [field, data[field]])
+    );
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: 'No editable fields provided' }, { status: 400 });
+    }
+
     await connectDB();
     const { id } = await params;
 
     const writing = await Writing.findOneAndUpdate(
       { _id: id, userId: session.user.id },
-      { $set: data },
-      { new: true }
+      { $set: updates },
+      { returnDocument: 'after', runValidators: true }
     );
 
     if (!writing) {

@@ -5,11 +5,14 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { User } from 'lucide-react';
+import { ModeToggle } from './ThemeButton';
+
 
 export default function Topbar() {
   const router = useRouter();
   const { data: session } = useSession();
-  const user = session?.user;
+    const user = session?.user;
+
 
   return (
     <div className="flex flex-wrap items-center gap-3 px-4 py-4 sm:px-6 lg:px-8 border-b border-[rgba(255,255,255,0.07)] bg-[#0f0e0c] sticky top-0 z-40">
@@ -32,6 +35,9 @@ export default function Topbar() {
           <Plus size={14} />
           Add book
         </button>
+
+{/* Theme Toggle */}
+<ModeToggle/>
 
         {/* User Avatar */}
         <Link
