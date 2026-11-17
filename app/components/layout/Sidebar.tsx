@@ -40,7 +40,7 @@ export default function Sidebar({
 
   return (
     <>
-      <aside className={`hidden lg:flex ${isCollapsed ? 'w-16' : 'w-60'} transition-[width] duration-300 bg-[#1a1916] border-r border-[rgba(255,255,255,0.07)] fixed left-0 top-0 bottom-0 z-110 flex-col`}>
+      <aside className={`hidden lg:flex ${isCollapsed ? 'w-16' : 'w-60'} transition-[width] duration-300 bg-[#1a1916] border-r border-[rgba(255,255,255,0.07)] fixed left-0 top-10 bottom-0 z-110 flex-col`}>
         <div className={`flex items-center border-b border-[rgba(255,255,255,0.07)] ${isCollapsed ? 'justify-center p-4' : 'justify-between p-6'}`}>
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-[#c9a96e] rounded-lg flex items-center justify-center text-sm">

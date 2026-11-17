@@ -58,6 +58,31 @@ body {
   min-height: 100vh;
 }
 
+.titlebar-drag-region {
+  -webkit-app-region: drag;
+}
+
+.titlebar-no-drag {
+  -webkit-app-region: no-drag;
+}
+
+.electron-titlebar-spacer {
+  height: 0;
+}
+
+html.electron-window .electron-titlebar-spacer {
+  height: 2.5rem;
+}
+
+html.electron-window .app-window-layout {
+  min-height: calc(100vh - 2.5rem);
+}
+
+html.electron-window .auth-window-layout {
+  height: calc(100vh - 2.5rem);
+  min-height: calc(100vh - 2.5rem);
+}
+
 * {
   box-sizing: border-box;
 }

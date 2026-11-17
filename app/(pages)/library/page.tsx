@@ -80,9 +80,7 @@ export default function LibraryPage() {
         <div className="library-masthead flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <p className="eyebrow mb-3">Collection overview</p>
-            <h1 className="font-serif text-4xl sm:text-5xl lg:text-[4rem] leading-[0.92] text-[var(--ink)]">
-              My library
-            </h1>
+     
             <p className="mt-4 max-w-2xl text-sm text-[var(--ink-soft)]">
               {books.length} volumes across all categories, surfaced in a tactile reading shelf.
             </p>

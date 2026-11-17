@@ -17,24 +17,30 @@ interface PdfReaderProps {
   fileUrl: string;
   pageIndex: number;
   fitToPage: boolean;
+  isRtl?: boolean;
   onPageChange: (pageIndex: number) => void;
   onDocumentLoad: (pageCount: number) => void;
+  onSpreadSizeChange?: (pagesPerSpread: number) => void;
 }
 
 export default function PdfReader({
   fileUrl,
   pageIndex,
   fitToPage,
+  isRtl = false,
   onPageChange,
   onDocumentLoad,
+  onSpreadSizeChange,
 }: PdfReaderProps) {
   const readerRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef<number | null>(null);
   const lastTurnAt = useRef(0);
+  const previousPageIndex = useRef(pageIndex);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [pageCount, setPageCount] = useState(0);
   const [pageAspectRatio, setPageAspectRatio] = useState(0.707);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [turnDirection, setTurnDirection] = useState<'forward' | 'backward' | null>(null);
 
   useEffect(() => {
     const reader = readerRef.current;
@@ -57,6 +63,16 @@ export default function PdfReader({
     reader.scrollTop = 0;
   }, [fileUrl, pageIndex]);
 
+  useEffect(() => {
+    const previousIndex = previousPageIndex.current;
+    previousPageIndex.current = pageIndex;
+    if (previousIndex === pageIndex) return;
+
+    setTurnDirection(pageIndex > previousIndex ? 'forward' : 'backward');
+    const timeoutId = window.setTimeout(() => setTurnDirection(null), 900);
+    return () => window.clearTimeout(timeoutId);
+  }, [pageIndex]);
+
   const handleDocumentLoad = useCallback((document: PDFDocumentProxy) => {
     setPageCount(document.numPages);
     setLoadError(null);
@@ -72,19 +88,6 @@ export default function PdfReader({
       onPageChange(nextPage);
     }
   }, [onPageChange, pageCount, pageIndex]);
-
-  const handleWheel = (event: React.WheelEvent<HTMLDivElement>) => {
-    if (Math.abs(event.deltaY) < 24) return;
-
-    const reader = readerRef.current;
-    const atTop = !reader || reader.scrollTop <= 0;
-    const atBottom = !reader ||
-      reader.scrollTop + reader.clientHeight >= reader.scrollHeight - 1;
-    if ((event.deltaY > 0 && !atBottom) || (event.deltaY < 0 && !atTop)) return;
-
-    event.preventDefault();
-    turnPage(event.deltaY > 0 ? 1 : -1);
-  };
 
   const handleTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
     const startY = touchStartY.current;
@@ -106,15 +109,20 @@ export default function PdfReader({
     }
   };
 
-  const pageWidth = fitToPage
-    ? Math.max(1, Math.min(dimensions.width - 32, (dimensions.height - 32) / pageAspectRatio))
-    : Math.max(1, Math.min(1100, dimensions.width - 48));
+  const pagesPerSpread = dimensions.width >= 760 ? 2 : 1;
+  useEffect(() => {
+    onSpreadSizeChange?.(pagesPerSpread);
+  }, [onSpreadSizeChange, pagesPerSpread]);
 
+  const pageGap = pagesPerSpread === 2 ? 24 : 0;
+  const availableWidth = Math.max(1, dimensions.width - 48 - pageGap);
+  const pageWidth = fitToPage
+    ? Math.max(1, Math.min(availableWidth / pagesPerSpread, (dimensions.height - 32) / pageAspectRatio))
+    : Math.max(1, Math.min(600, availableWidth / pagesPerSpread));
   return (
     <div
       ref={readerRef}
       className={`${styles.reader} ${fitToPage ? styles.fitToPage : ''}`}
-      onWheel={handleWheel}
       onTouchStart={(event) => {
         touchStartY.current = event.touches[0].clientY;
       }}
@@ -145,7 +153,16 @@ export default function PdfReader({
           loading={<div className={styles.message}>Loading PDF...</div>}
         >
           {pageCount > 0 && (
-            <div aria-live="polite">
+            <div
+              className={[
+                styles.spread,
+                isRtl ? styles.rtl : '',
+                pagesPerSpread === 2 && pageIndex + 1 < pageCount ? styles.twoPageSpread : '',
+                pagesPerSpread === 2 && turnDirection === 'forward' ? styles.forwardTurn : '',
+                pagesPerSpread === 2 && turnDirection === 'backward' ? styles.backwardTurn : '',
+              ].filter(Boolean).join(' ')}
+              aria-live="polite"
+            >
               <Page
                 pageNumber={pageIndex + 1}
                 width={pageWidth}
@@ -157,6 +174,15 @@ export default function PdfReader({
                 renderAnnotationLayer
                 loading={<div className={styles.message}>Rendering page...</div>}
               />
+              {pagesPerSpread === 2 && pageIndex + 1 < pageCount && (
+                <Page
+                  pageNumber={pageIndex + 2}
+                  width={pageWidth}
+                  renderTextLayer
+                  renderAnnotationLayer
+                  loading={<div className={styles.message}>Rendering page...</div>}
+                />
+              )}
             </div>
           )}
         </Document>

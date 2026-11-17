@@ -103,7 +103,7 @@ export default function OverviewPage() {
 <>
 {loading ? "laoding .." :     <div className="page-shell">
       <div className="mb-7">
-        <h1 className="font-serif text-2xl text-[#f0ede8] mb-1">
+        <h1 className="font-semibold  text-2xl text-[#f0ede8] mb-1">
           Good evening, Reader 🌙
         </h1>
         <p className="text-sm text-[#9b9890]">

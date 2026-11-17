@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const http = require('http');
 const fs = require('fs');
@@ -7,11 +7,34 @@ if (process.platform === 'linux') {
   app.commandLine.appendSwitch('no-sandbox');
 }
 
-const isDev = false;
+const isDev = true;
 const PORT = isDev ? 3000 : 3001;
 const LOADING_SCREEN_DURATION_MS = 5000;
 
 let errorWindow = null;
+
+ipcMain.on('window:minimize', (event) => {
+  BrowserWindow.fromWebContents(event.sender)?.minimize();
+});
+
+ipcMain.on('window:toggle-maximize', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win) return;
+
+  if (win.isMaximized()) {
+    win.unmaximize();
+  } else {
+    win.maximize();
+  }
+});
+
+ipcMain.on('window:close', (event) => {
+  BrowserWindow.fromWebContents(event.sender)?.close();
+});
+
+ipcMain.handle('window:is-maximized', (event) => {
+  return BrowserWindow.fromWebContents(event.sender)?.isMaximized() ?? false;
+});
 
 const envPath = path.join(__dirname, '../.env');
 if (fs.existsSync(envPath)) {
@@ -154,13 +177,25 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1000,
     height: 600,
+    frame: false,
+    backgroundColor: '#1a1916',
     icon: path.join(__dirname, '../public/icon.png'),
+    title: 'Shelve - Your Personal Laibary',
+    devTools: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       plugins: true,
     },
   });
+
+  const sendMaximizeState = () => {
+    if (!win.isDestroyed()) {
+      win.webContents.send('window:maximize-state', win.isMaximized());
+    }
+  };
+  win.on('maximize', sendMaximizeState);
+  win.on('unmaximize', sendMaximizeState);
 
   win.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
     if (!validatedURL.startsWith(`http://localhost:${PORT}`)) {

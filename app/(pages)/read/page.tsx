@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { IBook } from '@/app/models/book';
@@ -20,21 +20,73 @@ const PdfReader = dynamic(() => import('@/app/components/reader/PdfReader'), {
   ),
 });
 
+const splitBookText = (content: string): [string[], string[]] => {
+  const paragraphs = content.split(/\n{2,}/).filter((paragraph) => paragraph.trim());
+
+  if (paragraphs.length === 1 && paragraphs[0].length > 250) {
+    const midpoint = paragraphs[0].length / 2;
+    const splitAt = paragraphs[0].lastIndexOf(' ', midpoint);
+    if (splitAt > 0) {
+      return [
+        [paragraphs[0].slice(0, splitAt)],
+        [paragraphs[0].slice(splitAt + 1)],
+      ];
+    }
+  }
+
+  if (paragraphs.length < 2) return [paragraphs, []];
+
+  const halfway = paragraphs.reduce((total, paragraph) => total + paragraph.length, 0) / 2;
+  let leftLength = 0;
+  let splitIndex = 1;
+  while (splitIndex < paragraphs.length - 1 && leftLength < halfway) {
+    leftLength += paragraphs[splitIndex - 1].length;
+    splitIndex += 1;
+  }
+
+  return [paragraphs.slice(0, splitIndex), paragraphs.slice(splitIndex)];
+};
+
+const isTextLikeFile = (fileType: string) =>
+  fileType.includes('text') ||
+  fileType.includes('json') ||
+  fileType.includes('xml') ||
+  fileType.includes('markdown') ||
+  fileType.includes('javascript') ||
+  fileType.includes('html') ||
+  fileType.includes('css') ||
+  fileType.includes('csv');
+
 export default function ReadPage() {
   const { data: session, status } = useSession();
   const [readingBooks, setReadingBooks] = useState<IBook[]>([]);
   const [selectedBook, setSelectedBook] = useState<IBook | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
+  const pageChangeHandlerRef = useRef<(page: number) => void>(() => {});
+  const currentPageRef = useRef(currentPage);
   const [loading, setLoading] = useState(true);
   const [fontSize, setFontSize] = useState(17);
-  const [theme, setTheme] = useState<'light' | 'dark' | 'sepia'>('dark');
+  const [theme, setTheme] = useState<'light' | 'dark' | 'sepia'>('light');
   const [showSidebar, setShowSidebar] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const [isFocusMode, setIsFocusMode] = useState(false);
   const [pdfPageCount, setPdfPageCount] = useState(0);
+  const [pdfPagesPerSpread, setPdfPagesPerSpread] = useState(1);
+  const [isRtl, setIsRtl] = useState(false);
   const [previewContent, setPreviewContent] = useState<string | null>(null);
   const [contentLoading, setContentLoading] = useState(false);
   const [contentError, setContentError] = useState<string | null>(null);
+
+  currentPageRef.current = currentPage;
+
+  useEffect(() => {
+    if (!selectedBook) {
+      setIsRtl(false);
+      return;
+    }
+
+    setIsRtl(localStorage.getItem(`reader-direction-${selectedBook._id}`) === 'rtl');
+  }, [selectedBook?._id]);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -168,14 +220,7 @@ export default function ReadPage() {
 
         const fileType = (selectedBook.fileType || '').toLowerCase();
 
-        const isTextLike = fileType.includes('text') ||
-          fileType.includes('json') ||
-          fileType.includes('xml') ||
-          fileType.includes('markdown') ||
-          fileType.includes('javascript') ||
-          fileType.includes('html') ||
-          fileType.includes('css') ||
-          fileType.includes('csv');
+        const isTextLike = isTextLikeFile(fileType);
 
         if (!isTextLike && !fileType.includes('pdf')) {
           setPreviewContent(null);
@@ -218,6 +263,11 @@ export default function ReadPage() {
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setIsFocusMode(false);
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+        event.preventDefault();
+        const nextPage = currentPageRef.current + (event.key === 'ArrowRight' ? 1 : -1);
+        if (nextPage !== currentPageRef.current) pageChangeHandlerRef.current(nextPage);
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -240,6 +290,7 @@ export default function ReadPage() {
     setSelectedBook(book);
     setCurrentPage(book.currentPage || 0);
     setPdfPageCount(0);
+    setIsRtl(localStorage.getItem(`reader-direction-${book._id}`) === 'rtl');
   };
 
   const handlePageChange = (newPage: number) => {
@@ -276,6 +327,8 @@ export default function ReadPage() {
     }
   };
 
+  pageChangeHandlerRef.current = handlePageChange;
+
   const handleFontSizeChange = (delta: number) => {
     const newSize = Math.max(12, Math.min(24, fontSize + delta));
     setFontSize(newSize);
@@ -292,14 +345,36 @@ export default function ReadPage() {
     localStorage.setItem('reader-sidebar', (!showSidebar).toString());
   };
 
+  const toggleReadingDirection = () => {
+    const nextIsRtl = !isRtl;
+    setIsRtl(nextIsRtl);
+    if (selectedBook) {
+      localStorage.setItem(
+        `reader-direction-${selectedBook._id}`,
+        nextIsRtl ? 'rtl' : 'ltr',
+      );
+    }
+  };
+
   const getThemeClasses = () => {
     switch (theme) {
       case 'light':
-        return 'bg-[#f5f0e8] text-[#2a2926]';
+        return 'bg-[#e8e4dc] text-[#302b23]';
+      case 'sepia':
+        return 'bg-[#e5dbc6] text-[#3d3a32]';
+      default:
+        return 'bg-[#171512] text-[#d4cfc7]';
+    }
+  };
+
+  const getPaperClasses = () => {
+    switch (theme) {
       case 'sepia':
         return 'bg-[#f4ecd8] text-[#3d3a32]';
+      case 'dark':
+        return 'bg-[#25221d] text-[#e4ded2]';
       default:
-        return 'bg-[#1c1a14] text-[#d4cfc7]';
+        return 'bg-[#fffefa] text-[#302b23]';
     }
   };
 
@@ -328,48 +403,91 @@ export default function ReadPage() {
   const getBookContent = () => {
     if (!selectedBook) return null;
 
-    if (!selectedBook.fileUrl) {
+    const renderBookSpread = (
+      content: string | null,
+      sourceLabel: string,
+      fileUrl?: string,
+    ) => {
+      const [leftPage, rightPage] = splitBookText(content || '');
+      const renderPageText = (paragraphs: string[]) => paragraphs.map((paragraph, index) => (
+        <p key={`${index}-${paragraph.slice(0, 24)}`} className="mb-5 whitespace-pre-wrap last:mb-0">
+          {paragraph}
+        </p>
+      ));
+
       return (
-        <div className="h-full w-full overflow-y-auto px-6 py-8">
-          <div className="mx-auto max-w-180">
-            <h2 className="text-2xl font-serif font-normal text-[#f0ede8] mb-8">
-              {selectedBook.title}
-            </h2>
-
-            <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] p-6">
-              <div className="mb-4 flex items-center gap-2 text-sm text-[#c9a96e]">
-                <BookOpen size={16} />
-                Open Library preview
+        <div className="h-full w-full overflow-y-auto px-3 py-5 sm:px-6 sm:py-8 lg:px-8">
+          <article
+            className={`mx-auto grid ${
+              isFocusMode ? 'min-h-[calc(100dvh-4rem)]' : 'min-h-[min(76vh,900px)]'
+            } w-full max-w-6xl grid-cols-1 overflow-hidden rounded-md shadow-[0_24px_70px_rgba(47,37,22,0.18)] md:grid-cols-2 ${getPaperClasses()}`}
+            dir={isRtl ? 'rtl' : 'ltr'}
+            style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
+          >
+            <section className={`relative ${
+              isFocusMode ? 'min-h-[calc(100dvh-4rem)]' : 'min-h-[62vh] md:min-h-[min(76vh,900px)]'
+            } px-7 pb-16 pt-10 sm:px-12 sm:pt-14 md:px-12 lg:px-16`}>
+              <div className="mb-10 border-b border-current/10 pb-5 text-center">
+                <h2 className="text-2xl font-semibold leading-tight sm:text-3xl">
+                  {selectedBook.title}
+                </h2>
+                {selectedBook.author && (
+                  <p className="mt-2 text-sm italic opacity-65">{selectedBook.author}</p>
+                )}
               </div>
-
               {contentLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="text-[#c9a96e]" size={32} />
+                <div className="flex min-h-48 items-center justify-center">
+                  <Loader2 className="animate-spin text-[#a47b3c]" size={30} />
                 </div>
               ) : contentError ? (
-                <div className="rounded-xl border border-[rgba(224,82,82,0.25)] bg-[rgba(224,82,82,0.1)] p-6 text-center">
-                  <p className="text-[#e05252]">{contentError}</p>
+                <div className="py-12 text-center font-sans text-sm">
+                  <p className="text-red-700">{contentError}</p>
+                  {fileUrl && (
+                    <a href={fileUrl} target="_blank" rel="noreferrer" className="mt-3 inline-block text-[#8b642a] underline">
+                      Try opening the file directly
+                    </a>
+                  )}
                 </div>
-              ) : previewContent ? (
-                <div className="whitespace-pre-wrap text-sm leading-relaxed text-[#e4e2dd]">
-                  {previewContent}
+              ) : content ? (
+                <div className="text-justify leading-[1.9] sm:leading-loose">
+                  {renderPageText(leftPage)}
                 </div>
               ) : (
-                <p className="text-sm text-[#e4e2dd]">
-                  A preview for this book is not available yet. Try opening the book from the library again later.
+                <p className="py-12 text-center font-sans text-sm opacity-70">
+                  A preview for this book is not available yet.
                 </p>
               )}
-            </div>
-
-            <div className="mt-6 text-sm text-[#9b9890]">
-              <span className="flex items-center gap-2">
-                <FileText size={14} />
-                Source: <span className="text-[#c9a96e]">Open Library</span>
-              </span>
-            </div>
-          </div>
+              <div className="absolute inset-x-0 bottom-5 text-center font-sans text-xs tracking-widest opacity-40">
+                {Math.max(1, currentPage + 1)}
+              </div>
+            </section>
+            <section className={`relative ${
+              isFocusMode ? 'min-h-[calc(100dvh-4rem)]' : 'min-h-[62vh] md:min-h-[min(76vh,900px)]'
+            } border-t border-black/10 px-7 pb-16 pt-10 shadow-[inset_12px_0_22px_-22px_rgba(42,32,18,0.7)] sm:px-12 sm:pt-14 md:border-l md:border-t-0 md:px-12 lg:px-16`}>
+              <div className="mb-10 border-b border-current/10 pb-5 text-center text-xs uppercase tracking-[0.2em] opacity-45">
+                {selectedBook.title}
+              </div>
+              {!contentLoading && !contentError && (
+                <div className="text-justify leading-[1.9] sm:leading-loose">
+                  {renderPageText(rightPage)}
+                </div>
+              )}
+              {!contentLoading && !contentError && content && (
+                <div className="mt-8 border-t border-current/10 pt-4 font-sans text-xs opacity-55">
+                  Source: {sourceLabel}
+                </div>
+              )}
+              <div className="absolute inset-x-0 bottom-5 text-center font-sans text-xs tracking-widest opacity-40">
+                {Math.max(2, currentPage + 2)}
+              </div>
+            </section>
+          </article>
         </div>
       );
+    };
+
+    if (!selectedBook.fileUrl) {
+      return renderBookSpread(previewContent, 'Open Library');
     }
 
     const fileType = (selectedBook.fileType || '').toLowerCase();
@@ -388,13 +506,15 @@ export default function ReadPage() {
     // Render PDFs as individual pages for controlled scrolling and page turns.
     if (isPdf) {
       return (
-        <div className="h-full w-full overflow-hidden bg-[#2a2926]">
+        <div className={`h-full w-full overflow-hidden ${getThemeClasses()}`}>
           <PdfReader
             key={selectedBook.fileUrl}
             fileUrl={selectedBook.fileUrl}
             pageIndex={currentPage}
             fitToPage={isFocusMode}
+            isRtl={isRtl}
             onPageChange={handlePageChange}
+            onSpreadSizeChange={setPdfPagesPerSpread}
             onDocumentLoad={(pageCount) => {
               setPdfPageCount(pageCount);
               setCurrentPage((page) => Math.min(page, pageCount - 1));
@@ -406,58 +526,7 @@ export default function ReadPage() {
 
     // For text-based files - show formatted text
     if (isTextLike) {
-      return (
-        <div className="h-full w-full overflow-y-auto px-6 py-8">
-          <div className="mx-auto max-w-180">
-            <h2 className="text-2xl font-serif font-normal text-[#f0ede8] mb-8">
-              {selectedBook.title}
-            </h2>
-
-            {contentLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="text-[#c9a96e]" size={32} />
-              </div>
-            ) : contentError ? (
-              <div className="rounded-xl border border-[rgba(224,82,82,0.25)] bg-[rgba(224,82,82,0.1)] p-6 text-center">
-                <p className="text-[#e05252]">{contentError}</p>
-                <a
-                  href={selectedBook.fileUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-3 inline-block text-[#c9a96e] hover:underline"
-                >
-                  Try opening the file directly
-                </a>
-              </div>
-            ) : previewContent ? (
-              <div className="whitespace-pre-wrap rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] p-6 text-sm leading-relaxed text-[#e4e2dd]">
-                {previewContent}
-              </div>
-            ) : (
-              <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] p-6 text-sm leading-relaxed text-[#e4e2dd]">
-                <p>No preview available for this file type.</p>
-                <p className="mt-3">
-                  <a
-                    href={selectedBook.fileUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-[#c9a96e] hover:underline"
-                  >
-                    Download or open the file
-                  </a>
-                </p>
-              </div>
-            )}
-
-            <div className="mt-8 text-sm text-[#9b9890]">
-              <span className="flex items-center gap-2">
-                <FileText size={14} />
-                File type: <span className="text-[#c9a96e]">{selectedBook.fileType || 'Unknown'}</span>
-              </span>
-            </div>
-          </div>
-        </div>
-      );
+      return renderBookSpread(previewContent, selectedBook.fileType || 'Text file', selectedBook.fileUrl);
     }
 
     // For EPUB and MOBI files
@@ -559,6 +628,16 @@ export default function ReadPage() {
 
   const progress = getProgressPercentage();
   const totalPages = pdfPageCount || selectedBook.totalPages;
+  const bookFileType = (selectedBook.fileType || '').toLowerCase();
+  const isPdfBook = bookFileType.includes('pdf');
+  const displaysTextSpread = !selectedBook.fileUrl || isTextLikeFile(bookFileType);
+  const pagesPerView = isPdfBook ? pdfPagesPerSpread : displaysTextSpread ? 2 : 1;
+  const displayPageEnd = totalPages > 0
+    ? Math.min(currentPage + pagesPerView, totalPages)
+    : currentPage + 1;
+  const pageRange = displayPageEnd > currentPage + 1
+    ? `${currentPage + 1}–${displayPageEnd}`
+    : `${currentPage + 1}`;
 
   return (
     <div className={`flex ${
@@ -640,84 +719,144 @@ export default function ReadPage() {
 
       {/* Main Reader Area */}
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Reader Toolbar */}
-        <div className="flex items-center gap-2 px-3 py-3 border-b border-[rgba(255,255,255,0.07)] bg-[#1a1916] sm:gap-4 sm:px-6">
-          {!isFocusMode && (
+        {isFocusMode ? (
+          <>
+            <div className="fixed left-1/2 top-4 z-210 flex max-w-[calc(100vw-7rem)] -translate-x-1/2 items-center gap-3 rounded-xl bg-[#1a1916]/85 px-4 py-2 text-center text-[#f0ede8] shadow-lg backdrop-blur-sm">
+              <div className="min-w-0">
+                <div className="truncate text-sm font-medium">{selectedBook.title}</div>
+                <div className="text-xs text-[#c9a96e]">{pageRange} / {totalPages}</div>
+              </div>
+              <button
+                type="button"
+                onClick={toggleReadingDirection}
+                aria-pressed={isRtl}
+                aria-label={isRtl ? 'Switch to left-to-right reading' : 'Switch to right-to-left reading'}
+                title="Change reading direction"
+                className={`shrink-0 rounded-md px-2 py-1 text-xs font-semibold ${
+                  isRtl ? 'bg-[#c9a96e] text-[#1a1510]' : 'bg-[#302b23] text-[#e4ded2]'
+                }`}
+              >
+                {isRtl ? 'RTL' : 'LTR'}
+              </button>
+            </div>
+            <div className="pointer-events-none fixed inset-0 z-210 flex items-center justify-between px-3 sm:px-6">
+              <button
+                type="button"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage <= 0}
+                aria-label="Previous page"
+                title="Previous page (Left Arrow)"
+                className="pointer-events-auto rounded-full bg-[#1a1916]/80 p-3 text-[#f0ede8] shadow-lg backdrop-blur-sm transition hover:bg-[#222119] disabled:opacity-30"
+              >
+                <ChevronLeft size={22} />
+              </button>
+              <button
+                type="button"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage >= totalPages - 1}
+                aria-label="Next page"
+                title="Next page (Right Arrow)"
+                className="pointer-events-auto rounded-full bg-[#1a1916]/80 p-3 text-[#f0ede8] shadow-lg backdrop-blur-sm transition hover:bg-[#222119] disabled:opacity-30"
+              >
+                <ChevronRight size={22} />
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsFocusMode(false)}
+              aria-label="Exit focus mode"
+              title="Exit focus mode"
+              className="fixed right-4 top-4 z-220 rounded-full bg-[#1a1916]/85 p-2 text-[#f0ede8] shadow-lg backdrop-blur-sm hover:bg-[#222119]"
+            >
+              <Minimize2 size={18} />
+            </button>
+          </>
+        ) : (
+          <div className="flex items-center gap-2 border-b border-[rgba(255,255,255,0.07)] bg-[#1a1916] px-3 py-3 sm:gap-4 sm:px-6">
             <button
               onClick={toggleSidebar}
               aria-label={showSidebar ? 'Hide reading list' : 'Show reading list'}
               className="p-1.5 text-[#9b9890] hover:text-[#f0ede8]"
             >
-              {showSidebar ? <Menu size={18} /> : <Menu size={18} />}
+              <Menu size={18} />
             </button>
-          )}
+            <div className="flex-1">
+              <div className="text-sm text-[#f0ede8]">{selectedBook.title}</div>
+              <div className="text-xs text-[#9b9890]">{selectedBook.author}</div>
+            </div>
 
-          <div className="flex-1">
-            <div className="text-sm text-[#f0ede8]">{selectedBook.title}</div>
-            <div className="text-xs text-[#9b9890]">{selectedBook.author}</div>
-          </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={toggleReadingDirection}
+                aria-pressed={isRtl}
+                aria-label={isRtl ? 'Switch to left-to-right reading' : 'Switch to right-to-left reading'}
+                title="Change reading direction"
+                className={`rounded-md px-2 py-1 text-xs font-semibold ${
+                  isRtl
+                    ? 'bg-[#c9a96e] text-[#1a1510]'
+                    : 'bg-[#222119] text-[#9b9890] hover:text-[#f0ede8]'
+                }`}
+              >
+                {isRtl ? 'RTL' : 'LTR'}
+              </button>
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage <= 0}
+                aria-label="Previous page"
+                className="p-1.5 text-[#9b9890] hover:text-[#f0ede8] disabled:opacity-30"
+              >
+                <ChevronLeft size={18} />
+              </button>
+              <span className="text-xs text-[#5c5a56]">
+                {pageRange} / {totalPages}
+              </span>
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage >= totalPages - 1}
+                aria-label="Next page"
+                className="p-1.5 text-[#9b9890] hover:text-[#f0ede8] disabled:opacity-30"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage <= 0}
-              aria-label="Previous page"
-              className="p-1.5 text-[#9b9890] hover:text-[#f0ede8] disabled:opacity-30"
-            >
-              <ChevronLeft size={18} />
-            </button>
-            <span className="text-xs text-[#5c5a56]">
-              {currentPage + 1} / {totalPages}
-            </span>
-            <button
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage >= totalPages - 1}
-              aria-label="Next page"
-              className="p-1.5 text-[#9b9890] hover:text-[#f0ede8] disabled:opacity-30"
-            >
-              <ChevronRight size={18} />
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsFocusMode(true);
+                  setShowSettings(false);
+                }}
+                aria-label="Enter focus mode"
+                title="Read in focus mode"
+                className="p-1.5 text-[#9b9890] hover:text-[#f0ede8]"
+              >
+                <Maximize2 size={16} />
+              </button>
+              <button
+                onClick={() => setShowSettings(!showSettings)}
+                aria-label="Reading settings"
+                className="p-1.5 text-[#9b9890] hover:text-[#f0ede8]"
+              >
+                <Settings size={16} />
+              </button>
+              <button
+                onClick={() => {
+                  if (navigator.share) {
+                    navigator.share({
+                      title: selectedBook.title,
+                      text: `Reading ${selectedBook.title} by ${selectedBook.author}`,
+                    });
+                  }
+                }}
+                className="p-1.5 text-[#9b9890] hover:text-[#f0ede8]"
+              >
+                <Share2 size={16} />
+              </button>
+            </div>
           </div>
-
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => {
-                setIsFocusMode((focusMode) => !focusMode);
-                setShowSettings(false);
-              }}
-              aria-label={isFocusMode ? 'Exit focus mode' : 'Enter focus mode'}
-              title={isFocusMode ? 'Exit focus mode' : 'Read in focus mode'}
-              className="p-1.5 text-[#9b9890] hover:text-[#f0ede8]"
-            >
-              {isFocusMode ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-            </button>
-            {!isFocusMode && (
-              <>
-                <button
-                  onClick={() => setShowSettings(!showSettings)}
-                  aria-label="Reading settings"
-                  className="p-1.5 text-[#9b9890] hover:text-[#f0ede8]"
-                >
-                  <Settings size={16} />
-                </button>
-                <button
-                  onClick={() => {
-                    if (navigator.share) {
-                      navigator.share({
-                        title: selectedBook.title,
-                        text: `Reading ${selectedBook.title} by ${selectedBook.author}`,
-                      });
-                    }
-                  }}
-                  className="p-1.5 text-[#9b9890] hover:text-[#f0ede8]"
-                >
-                  <Share2 size={16} />
-                </button>
-              </>
-            )}
-          </div>
-        </div>
+        )}
 
         {/* Settings Panel */}
         {showSettings && !isFocusMode && (
@@ -799,7 +938,7 @@ export default function ReadPage() {
             <div className="flex items-center gap-4 text-xs text-[#5c5a56]">
               <span>{progress}% complete</span>
               <span>•</span>
-              <span>Page {currentPage + 1} of {totalPages}</span>
+              <span>{pagesPerView > 1 ? 'Pages' : 'Page'} {pageRange} of {totalPages}</span>
             </div>
             <div className="text-xs text-[#5c5a56]">
               <BookOpen size={12} className="inline mr-1" />

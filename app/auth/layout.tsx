@@ -16,7 +16,7 @@ export default function AuthLayout({
   }
 
   return (
-    <div className="min-h-screen bg-[#0f0e0c] w-full  flex h-screen  ">
+    <div className="auth-window-layout min-h-screen bg-[#0f0e0c] w-full flex h-screen">
   
         {children}
      

@@ -24,7 +24,7 @@ export default function RootLayout({
   }, []);
 
   return (
-    <div className="flex min-h-screen flex-col lg:flex-row">
+    <div className="app-window-layout flex min-h-screen flex-col lg:flex-row">
       <Sidebar
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed((collapsed) => !collapsed)}
