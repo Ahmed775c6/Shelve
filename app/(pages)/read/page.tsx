@@ -8,7 +8,7 @@ import { IBook } from '@/app/models/book';
 import { 
   BookOpen, Clock, ChevronLeft, ChevronRight, 
   Share2, Settings, ZoomIn, ZoomOut, Menu, FileText, Maximize2, Minimize2,
-  Download, ExternalLink, Loader2
+  Download, ExternalLink, Loader2, Highlighter, StickyNote, Sparkles, X
 } from 'lucide-react';
 
 const PdfReader = dynamic(() => import('@/app/components/reader/PdfReader'), {
@@ -57,6 +57,92 @@ const isTextLikeFile = (fileType: string) =>
   fileType.includes('css') ||
   fileType.includes('csv');
 
+interface SelectedPassage {
+  text: string;
+  prefix: string;
+  suffix: string;
+  page: number;
+}
+
+interface SelectionMenuState {
+  x: number;
+  y: number;
+  passage: SelectedPassage | null;
+}
+
+const DEFAULT_HIGHLIGHT_COLOR = '#fff200';
+const HIGHLIGHT_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
+
+function normalizePassage(text: string) {
+  return text.replace(/[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, '').replace(/\s+/g, ' ').trim();
+}
+
+function captureSelectedPassage(root: HTMLElement, fallbackPage: number): SelectedPassage | null {
+  const selection = window.getSelection();
+  if (!selection || selection.isCollapsed || !selection.rangeCount) return null;
+
+  const range = selection.getRangeAt(0);
+  if (!root.contains(range.commonAncestorContainer)) return null;
+
+  const text = normalizePassage(range.toString());
+  if (!text) return null;
+
+  const startElement = range.startContainer.nodeType === Node.ELEMENT_NODE
+    ? range.startContainer as Element
+    : range.startContainer.parentElement;
+  const pageRoot = startElement?.closest('[data-reader-page], .react-pdf__Page') as HTMLElement | null;
+  const pageValue = pageRoot?.getAttribute('data-reader-page') ??
+    pageRoot?.getAttribute('data-page-number');
+  const page = pageValue && Number.isInteger(Number(pageValue))
+    ? Number(pageValue)
+    : fallbackPage;
+  const anchorRoot = pageRoot &&
+    pageRoot.contains(range.startContainer) &&
+    pageRoot.contains(range.endContainer)
+    ? pageRoot
+    : root;
+
+  const prefixRange = document.createRange();
+  prefixRange.selectNodeContents(anchorRoot);
+  prefixRange.setEnd(range.startContainer, range.startOffset);
+
+  const suffixRange = document.createRange();
+  suffixRange.selectNodeContents(anchorRoot);
+  suffixRange.setStart(range.endContainer, range.endOffset);
+  return {
+    text,
+    prefix: normalizePassage(prefixRange.toString()).slice(-160),
+    suffix: normalizePassage(suffixRange.toString()).slice(0, 160),
+    page,
+  };
+}
+
+function clampSelectionMenuPosition(x: number, y: number) {
+  return {
+    x: Math.max(8, Math.min(x, window.innerWidth - 260)),
+    y: Math.max(8, Math.min(y, window.innerHeight - 280)),
+  };
+}
+
+function isEditableTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false;
+  return target.isContentEditable ||
+    target.closest('input, textarea, select, [contenteditable="true"]') !== null;
+}
+
+async function responseError(response: Response, fallback: string) {
+  const payload: unknown = await response.json().catch(() => null);
+  if (
+    payload &&
+    typeof payload === 'object' &&
+    'error' in payload &&
+    typeof payload.error === 'string'
+  ) {
+    return payload.error;
+  }
+  return fallback;
+}
+
 export default function ReadPage() {
   const { data: session, status } = useSession();
   const [readingBooks, setReadingBooks] = useState<IBook[]>([]);
@@ -65,7 +151,7 @@ export default function ReadPage() {
   const pageChangeHandlerRef = useRef<(page: number) => void>(() => {});
   const currentPageRef = useRef(currentPage);
   const [loading, setLoading] = useState(true);
-  const [fontSize, setFontSize] = useState(17);
+  const [fontSize, setFontSize] = useState(20);
   const [theme, setTheme] = useState<'light' | 'dark' | 'sepia'>('light');
   const [showSidebar, setShowSidebar] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
@@ -76,8 +162,64 @@ export default function ReadPage() {
   const [previewContent, setPreviewContent] = useState<string | null>(null);
   const [contentLoading, setContentLoading] = useState(false);
   const [contentError, setContentError] = useState<string | null>(null);
+  const [highlightColor, setHighlightColor] = useState(DEFAULT_HIGHLIGHT_COLOR);
+  const [selectionMenu, setSelectionMenu] = useState<SelectionMenuState | null>(null);
+  const [selectionError, setSelectionError] = useState('');
+  const [selectionNotice, setSelectionNotice] = useState('');
+  const [activePassage, setActivePassage] = useState<SelectedPassage | null>(null);
+  const [showNoteDialog, setShowNoteDialog] = useState(false);
+  const [noteDraft, setNoteDraft] = useState('');
+  const [noteError, setNoteError] = useState('');
+  const [isSavingNote, setIsSavingNote] = useState(false);
+  const [showAiDialog, setShowAiDialog] = useState(false);
+  const [aiAnswer, setAiAnswer] = useState('');
+  const [aiError, setAiError] = useState('');
+  const [isAskingAi, setIsAskingAi] = useState(false);
+  const readerContentRef = useRef<HTMLDivElement>(null);
 
   currentPageRef.current = currentPage;
+
+  useEffect(() => {
+    try {
+      const savedColor = localStorage.getItem('reader-highlight-color');
+      if (savedColor && HIGHLIGHT_COLOR_PATTERN.test(savedColor)) {
+        setHighlightColor(savedColor);
+      }
+    } catch (error) {
+      console.error('Failed to load the highlight color preference:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleSelectionShortcut = (event: KeyboardEvent) => {
+      if (
+        !(event.ctrlKey || event.metaKey) ||
+        (event.code !== 'KeyJ' && event.key.toLowerCase() !== 'j')
+      ) return;
+
+      event.preventDefault();
+      const root = readerContentRef.current;
+      const selection = window.getSelection();
+      const range = selection && selection.rangeCount ? selection.getRangeAt(0) : null;
+      const passage = root ? captureSelectedPassage(root, currentPage + 1) : null;
+      const bounds = range?.getBoundingClientRect();
+      let x = window.innerWidth / 2;
+      let y = window.innerHeight / 2;
+      if (bounds && (bounds.width || bounds.height)) {
+        x = bounds.left + bounds.width / 2;
+        y = bounds.bottom;
+      }
+      const position = clampSelectionMenuPosition(x, y);
+      setSelectionError('');
+      setSelectionMenu({
+        ...position,
+        passage,
+      });
+    };
+
+    window.addEventListener('keydown', handleSelectionShortcut);
+    return () => window.removeEventListener('keydown', handleSelectionShortcut);
+  }, [currentPage]);
 
   useEffect(() => {
     if (!selectedBook) {
@@ -100,10 +242,22 @@ export default function ReadPage() {
         const booksArray = Array.isArray(data) ? data : [];
         setReadingBooks(booksArray);
         
-        // Select the first book by default
         if (booksArray.length > 0) {
-          setSelectedBook(booksArray[0]);
-          setCurrentPage(booksArray[0].currentPage || 0);
+          let savedBookId: string | null = null;
+          try {
+            savedBookId = localStorage.getItem('reader-selected-book');
+          } catch (error) {
+            console.error('Failed to load the selected reading book:', error);
+          }
+          const initialBook =
+            booksArray.find((book: IBook) => String(book._id) === savedBookId) ?? booksArray[0];
+          setSelectedBook(initialBook);
+          setCurrentPage(initialBook.currentPage || 0);
+          try {
+            localStorage.setItem('reader-selected-book', String(initialBook._id));
+          } catch (error) {
+            console.error('Failed to save the selected reading book:', error);
+          }
         }
       } catch (error) {
         console.error('Error fetching reading books:', error);
@@ -259,9 +413,35 @@ export default function ReadPage() {
   }, [selectedBook?._id, selectedBook?.fileUrl, selectedBook?.fileType, selectedBook?.title, selectedBook?.author, selectedBook?.description]);
 
   useEffect(() => {
-    if (!isFocusMode) return;
-
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (
+        (event.ctrlKey || event.metaKey) &&
+        !event.shiftKey &&
+        !event.altKey &&
+        (event.code === 'KeyO' || event.key.toLowerCase() === 'o') &&
+        !isEditableTarget(event.target)
+      ) {
+        event.preventDefault();
+        const newSize = Math.min(40, fontSize + 2);
+        if (newSize !== fontSize) {
+          setFontSize(newSize);
+          try {
+            localStorage.setItem('reader-font-size', newSize.toString());
+          } catch (error) {
+            console.error('Failed to save the reader text size:', error);
+          }
+        }
+        return;
+      }
+
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') {
+        event.preventDefault();
+        if (!isFocusMode) setShowSettings(false);
+        setIsFocusMode((focusMode) => !focusMode);
+        return;
+      }
+
+      if (!isFocusMode) return;
       if (event.key === 'Escape') setIsFocusMode(false);
       if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
         event.preventDefault();
@@ -272,7 +452,7 @@ export default function ReadPage() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isFocusMode]);
+  }, [fontSize, isFocusMode]);
 
   if (status === 'loading' || loading) {
     return (
@@ -291,6 +471,11 @@ export default function ReadPage() {
     setCurrentPage(book.currentPage || 0);
     setPdfPageCount(0);
     setIsRtl(localStorage.getItem(`reader-direction-${book._id}`) === 'rtl');
+    try {
+      localStorage.setItem('reader-selected-book', String(book._id));
+    } catch (error) {
+      console.error('Failed to save the selected reading book:', error);
+    }
   };
 
   const handlePageChange = (newPage: number) => {
@@ -330,7 +515,7 @@ export default function ReadPage() {
   pageChangeHandlerRef.current = handlePageChange;
 
   const handleFontSizeChange = (delta: number) => {
-    const newSize = Math.max(12, Math.min(24, fontSize + delta));
+    const newSize = Math.max(12, Math.min(40, fontSize + delta));
     setFontSize(newSize);
     localStorage.setItem('reader-font-size', newSize.toString());
   };
@@ -353,6 +538,118 @@ export default function ReadPage() {
         `reader-direction-${selectedBook._id}`,
         nextIsRtl ? 'rtl' : 'ltr',
       );
+    }
+  };
+
+  const openSelectionMenu = (x: number, y: number) => {
+    const root = readerContentRef.current;
+    const passage = root ? captureSelectedPassage(root, currentPage + 1) : null;
+    const position = clampSelectionMenuPosition(x, y);
+    setSelectionError('');
+    setSelectionNotice('');
+    setSelectionMenu({ ...position, passage });
+  };
+
+  const handleReaderContextMenu = (event: React.MouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    openSelectionMenu(event.clientX, event.clientY);
+  };
+
+  const handleHighlightColorChange = (color: string) => {
+    if (!HIGHLIGHT_COLOR_PATTERN.test(color)) return;
+    setHighlightColor(color);
+    try {
+      localStorage.setItem('reader-highlight-color', color);
+    } catch (error) {
+      console.error('Failed to save the highlight color preference:', error);
+      setSelectionError('The color was selected, but the preference could not be saved.');
+    }
+  };
+
+  const openNoteDialog = (passage: SelectedPassage) => {
+    setActivePassage(passage);
+    setNoteDraft('');
+    setNoteError('');
+    setSelectionMenu(null);
+    setShowNoteDialog(true);
+  };
+
+  const savePassageAsNote = async () => {
+    if (!selectedBook || !activePassage) return;
+
+    const note = noteDraft.trim();
+    const content = note
+      ? `“${activePassage.text}”\n\n${note}`
+      : activePassage.text;
+    setIsSavingNote(true);
+    setNoteError('');
+
+    try {
+      const response = await fetch(`/api/books/${selectedBook._id}/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content,
+          page: activePassage.page,
+          isPrivate: true,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(await responseError(response, 'Could not save this note.'));
+      }
+
+      setShowNoteDialog(false);
+      setActivePassage(null);
+      setNoteDraft('');
+      setSelectionNotice('Note saved to this book.');
+      window.getSelection()?.removeAllRanges();
+    } catch (error) {
+      console.error('Failed to save passage as a note:', error);
+      setNoteError(error instanceof Error ? error.message : 'Could not save this note.');
+    } finally {
+      setIsSavingNote(false);
+    }
+  };
+
+  const askAiAboutPassage = async (passage: SelectedPassage) => {
+    if (!selectedBook) return;
+
+    setActivePassage(passage);
+    setSelectionMenu(null);
+    setAiAnswer('');
+    setAiError('');
+    setIsAskingAi(true);
+    setShowAiDialog(true);
+    window.getSelection()?.removeAllRanges();
+
+    try {
+      const response = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: `In "${selectedBook.title}" by ${selectedBook.author}, explain the meaning and significance of this passage:\n\n“${passage.text}”`,
+          history: [],
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(await responseError(response, 'AI could not answer this question.'));
+      }
+
+      const payload: unknown = await response.json();
+      if (
+        !payload ||
+        typeof payload !== 'object' ||
+        !('response' in payload) ||
+        typeof payload.response !== 'string'
+      ) {
+        throw new Error('The AI response was invalid.');
+      }
+      setAiAnswer(payload.response);
+    } catch (error) {
+      console.error('Failed to ask AI about a reading passage:', error);
+      setAiError(error instanceof Error ? error.message : 'AI could not answer this question.');
+    } finally {
+      setIsAskingAi(false);
     }
   };
 
@@ -424,9 +721,12 @@ export default function ReadPage() {
             dir={isRtl ? 'rtl' : 'ltr'}
             style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
           >
-            <section className={`relative ${
+            <section
+              data-reader-page={currentPage + 1}
+              className={`relative ${
               isFocusMode ? 'min-h-[calc(100dvh-4rem)]' : 'min-h-[62vh] md:min-h-[min(76vh,900px)]'
-            } px-7 pb-16 pt-10 sm:px-12 sm:pt-14 md:px-12 lg:px-16`}>
+            } px-7 pb-16 pt-10 sm:px-12 sm:pt-14 md:px-12 lg:px-16`}
+            >
               <div className="mb-10 border-b border-current/10 pb-5 text-center">
                 <h2 className="text-2xl font-semibold leading-tight sm:text-3xl">
                   {selectedBook.title}
@@ -461,9 +761,12 @@ export default function ReadPage() {
                 {Math.max(1, currentPage + 1)}
               </div>
             </section>
-            <section className={`relative ${
+            <section
+              data-reader-page={currentPage + 2}
+              className={`relative ${
               isFocusMode ? 'min-h-[calc(100dvh-4rem)]' : 'min-h-[62vh] md:min-h-[min(76vh,900px)]'
-            } border-t border-black/10 px-7 pb-16 pt-10 shadow-[inset_12px_0_22px_-22px_rgba(42,32,18,0.7)] sm:px-12 sm:pt-14 md:border-l md:border-t-0 md:px-12 lg:px-16`}>
+            } border-t border-black/10 px-7 pb-16 pt-10 shadow-[inset_12px_0_22px_-22px_rgba(42,32,18,0.7)] sm:px-12 sm:pt-14 md:border-l md:border-t-0 md:px-12 lg:px-16`}
+            >
               <div className="mb-10 border-b border-current/10 pb-5 text-center text-xs uppercase tracking-[0.2em] opacity-45">
                 {selectedBook.title}
               </div>
@@ -638,6 +941,7 @@ export default function ReadPage() {
   const pageRange = displayPageEnd > currentPage + 1
     ? `${currentPage + 1}–${displayPageEnd}`
     : `${currentPage + 1}`;
+  const menuPassage = selectionMenu?.passage ?? null;
 
   return (
     <div className={`flex ${
@@ -867,6 +1171,7 @@ export default function ReadPage() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleFontSizeChange(-1)}
+                    aria-label="Decrease text size"
                     className="p-1 text-[#9b9890] hover:text-[#f0ede8]"
                   >
                     <ZoomOut size={14} />
@@ -874,6 +1179,8 @@ export default function ReadPage() {
                   <span className="text-sm text-[#f0ede8] w-8 text-center">{fontSize}</span>
                   <button
                     onClick={() => handleFontSizeChange(1)}
+                    aria-label="Increase text size (Ctrl+O)"
+                    title="Increase text size (Ctrl+O)"
                     className="p-1 text-[#9b9890] hover:text-[#f0ede8]"
                   >
                     <ZoomIn size={14} />
@@ -912,7 +1219,9 @@ export default function ReadPage() {
         )}
 
         {/* Reader Content */}
-        <div 
+        <div
+          ref={readerContentRef}
+          onContextMenu={handleReaderContextMenu}
           className={`min-h-0 flex-1 overflow-hidden relative ${getThemeClasses()}`}
           style={{ 
             fontSize: `${fontSize}px`,
@@ -947,6 +1256,201 @@ export default function ReadPage() {
           </div>
         </div>}
       </div>
+
+      {selectionMenu && (
+        <>
+          <button
+            type="button"
+            aria-label="Close passage actions"
+            className="fixed inset-0 z-280 cursor-default"
+            onClick={() => setSelectionMenu(null)}
+          />
+          <div
+            role="menu"
+            aria-label="Selected passage actions"
+            onContextMenu={(event) => event.preventDefault()}
+            className="fixed z-281 w-64 rounded-xl border border-white/10 bg-[#1a1916] p-2 text-[#f0ede8] shadow-2xl"
+            style={{ left: selectionMenu.x, top: selectionMenu.y }}
+          >
+            <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#c9a96e]">
+              Selected passage
+            </p>
+            {menuPassage ? (
+              <p className="mb-2 max-h-20 overflow-hidden px-2 text-xs leading-relaxed text-[#9b9890]">
+                “{menuPassage.text}”
+              </p>
+            ) : (
+              <p className="mb-2 px-2 text-xs text-[#9b9890]">Select text in the book first.</p>
+            )}
+            <div className="mb-1 flex items-center justify-between gap-2 rounded-lg px-2 py-1.5">
+              <label htmlFor="reading-highlight-color" className="text-xs text-[#9b9890]">
+                Highlight color
+              </label>
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-[10px] uppercase text-[#9b9890]">
+                  {highlightColor}
+                </span>
+                <input
+                  id="reading-highlight-color"
+                  type="color"
+                  aria-label="Choose highlight color"
+                  value={highlightColor}
+                  onChange={(event) => handleHighlightColorChange(event.target.value)}
+                  className="h-7 w-9 cursor-pointer rounded border border-white/15 bg-transparent p-0.5"
+                />
+              </div>
+            </div>
+            <button
+              type="button"
+              role="menuitem"
+              disabled={!menuPassage}
+              className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <Highlighter size={15} className="text-[#e7c55a]" />
+              Highlight text
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              disabled={!menuPassage}
+              onClick={() => menuPassage && openNoteDialog(menuPassage)}
+              className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <StickyNote size={15} className="text-[#c9a96e]" />
+              Save as note
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              disabled={!menuPassage}
+              onClick={() => menuPassage && void askAiAboutPassage(menuPassage)}
+              className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <Sparkles size={15} className="text-[#c9a96e]" />
+              Ask AI about this
+            </button>
+            {selectionError && (
+              <p role="alert" className="px-2 py-2 text-xs text-[#e4a1a1]">{selectionError}</p>
+            )}
+          </div>
+        </>
+      )}
+
+      {showNoteDialog && activePassage && (
+        <div className="fixed inset-0 z-290 flex items-center justify-center bg-black/60 p-4">
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="passage-note-title"
+            className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#1a1916] p-5 text-[#f0ede8] shadow-2xl"
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h2 id="passage-note-title" className="font-serif text-lg">Save passage as a note</h2>
+              <button
+                type="button"
+                aria-label="Close note dialog"
+                onClick={() => setShowNoteDialog(false)}
+                className="rounded-lg p-1.5 text-[#9b9890] hover:bg-white/10 hover:text-[#f0ede8]"
+              >
+                <X size={17} />
+              </button>
+            </div>
+            <blockquote className="mb-3 max-h-36 overflow-y-auto rounded-lg border-l-2 border-[#c9a96e] bg-black/20 p-3 text-sm leading-relaxed text-[#c9c4bb]">
+              {activePassage.text}
+            </blockquote>
+            <label htmlFor="passage-note-draft" className="mb-1.5 block text-xs text-[#9b9890]">
+              Add your note (optional)
+            </label>
+            <textarea
+              id="passage-note-draft"
+              value={noteDraft}
+              onChange={(event) => setNoteDraft(event.target.value)}
+              rows={4}
+              placeholder="What would you like to remember about this passage?"
+              className="w-full resize-y rounded-lg border border-white/10 bg-[#0f0e0c] p-3 text-sm text-[#f0ede8] outline-none placeholder:text-[#5c5a56] focus:border-[#c9a96e]"
+            />
+            {noteError && <p role="alert" className="mt-2 text-sm text-[#e4a1a1]">{noteError}</p>}
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowNoteDialog(false)}
+                className="rounded-lg px-3 py-2 text-sm text-[#9b9890] hover:bg-white/10"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void savePassageAsNote()}
+                disabled={isSavingNote}
+                className="rounded-lg bg-[#c9a96e] px-4 py-2 text-sm font-medium text-[#1a1510] hover:bg-[#d4b47a] disabled:opacity-50"
+              >
+                {isSavingNote ? 'Saving…' : 'Save note'}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {showAiDialog && activePassage && (
+        <div className="fixed inset-0 z-290 flex items-center justify-center bg-black/60 p-4">
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="passage-ai-title"
+            className="w-full max-w-2xl rounded-2xl border border-white/10 bg-[#1a1916] p-5 text-[#f0ede8] shadow-2xl"
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h2 id="passage-ai-title" className="flex items-center gap-2 font-serif text-lg">
+                <Sparkles size={18} className="text-[#c9a96e]" />
+                Ask AI about this passage
+              </h2>
+              <button
+                type="button"
+                aria-label="Close AI response"
+                onClick={() => setShowAiDialog(false)}
+                className="rounded-lg p-1.5 text-[#9b9890] hover:bg-white/10 hover:text-[#f0ede8]"
+              >
+                <X size={17} />
+              </button>
+            </div>
+            <blockquote className="mb-4 max-h-28 overflow-y-auto rounded-lg border-l-2 border-[#c9a96e] bg-black/20 p-3 text-sm leading-relaxed text-[#c9c4bb]">
+              {activePassage.text}
+            </blockquote>
+            {isAskingAi ? (
+              <p className="py-6 text-sm text-[#9b9890]" role="status">Thinking about the passage…</p>
+            ) : aiError ? (
+              <p role="alert" className="py-4 text-sm text-[#e4a1a1]">{aiError}</p>
+            ) : (
+              <div className="max-h-[50vh] overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-[#d3cec5]">
+                {aiAnswer}
+              </div>
+            )}
+          </section>
+        </div>
+      )}
+
+      {(selectionNotice || (selectionError && !selectionMenu)) && (
+        <div
+          role={selectionNotice ? 'status' : 'alert'}
+          className={`fixed bottom-5 left-1/2 z-295 flex max-w-[calc(100vw-2rem)] -translate-x-1/2 items-center gap-3 rounded-xl border px-4 py-3 text-sm shadow-xl ${
+            selectionNotice
+              ? 'border-[#c9a96e]/30 bg-[#1a1916] text-[#c9a96e]'
+              : 'border-red-400/30 bg-[#1a1916] text-[#e4a1a1]'
+          }`}
+        >
+          <span>{selectionNotice || selectionError}</span>
+          <button
+            type="button"
+            aria-label="Dismiss message"
+            onClick={() => {
+              setSelectionNotice('');
+              setSelectionError('');
+            }}
+          >
+            <X size={15} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

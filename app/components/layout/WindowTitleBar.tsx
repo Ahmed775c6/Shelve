@@ -92,10 +92,44 @@ export default function WindowTitleBar() {
   }, [pathname]);
 
   useEffect(() => {
-    if (!window.windowControls) return;
-
     const handleShortcut = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'p') {
+      if (!(event.ctrlKey || event.metaKey)) return;
+
+      const key = event.key.toLowerCase();
+      if (key === 'c' && window.windowControls) {
+        event.preventDefault();
+        void window.windowControls.captureScreenshot()
+          .then((filePath) => {
+            if (filePath) console.info(`Screenshot saved to ${filePath}`);
+          })
+          .catch((error: unknown) => {
+            console.error('Failed to save screenshot:', error);
+          });
+      } else if (key === 'p') {
+        event.preventDefault();
+        if (window.windowControls) {
+          void window.windowControls.openReadingPlanner().catch((error: unknown) => {
+            console.error('Failed to open the reading planner window:', error);
+          });
+        } else {
+          const plannerWindow = window.open(
+            '/reading-planner-window',
+            'shelve-reading-planner',
+            'popup,width=720,height=780'
+          );
+          if (!plannerWindow) window.location.assign('/reading-planner-window');
+        }
+      } else if (key === 'q' && window.windowControls) {
+        event.preventDefault();
+        void window.windowControls.quit().catch((error: unknown) => {
+          console.error('Failed to quit Shelve:', error);
+        });
+      } else if (key === 'm' && window.windowControls) {
+        event.preventDefault();
+        void window.windowControls.toggleMaximize().catch((error: unknown) => {
+          console.error('Failed to toggle window maximization:', error);
+        });
+      } else if (key === 's' && window.windowControls && pathname !== '/reading-planner-window') {
         event.preventDefault();
         searchInputRef.current?.focus();
         setSearchOpen(true);
@@ -104,7 +138,7 @@ export default function WindowTitleBar() {
 
     window.addEventListener('keydown', handleShortcut);
     return () => window.removeEventListener('keydown', handleShortcut);
-  }, []);
+  }, [pathname]);
 
   useEffect(() => {
     if (!searchOpen || !query.trim()) {
@@ -184,6 +218,46 @@ export default function WindowTitleBar() {
   const buttonClass =
     'inline-flex size-9 items-center justify-center text-[#e4e2dd] transition-colors hover:bg-white/10 disabled:cursor-default disabled:text-white/30 disabled:hover:bg-transparent';
 
+  if (pathname === '/reading-planner-window') {
+    return (
+      <header className="titlebar-drag-region fixed inset-x-0 top-0 z-130 flex h-10 select-none items-center justify-between border-b-2 border-[#c9a96e] bg-[#0f0e0c] text-[#f0ede8] dark:border-white/10">
+        <div className="ml-4 flex items-center gap-2 text-xs font-medium tracking-wide text-[#c9a96e]">
+          <BookOpen size={15} />
+          <span>Shelve/Schedule</span>
+        </div>
+        <div className="flex h-full items-stretch">
+          <button
+            type="button"
+            aria-label="Minimize window"
+            title="Minimize"
+            className="titlebar-no-drag inline-flex w-11 items-center justify-center text-[#e4e2dd] transition-colors hover:bg-white/10"
+            onClick={() => void window.windowControls?.minimize().catch(console.error)}
+          >
+            <Minus size={15} />
+          </button>
+          <button
+            type="button"
+            aria-label={isMaximized ? 'Restore window' : 'Maximize window'}
+            title={isMaximized ? 'Restore' : 'Maximize'}
+            className="titlebar-no-drag inline-flex w-11 items-center justify-center text-[#e4e2dd] transition-colors hover:bg-white/10"
+            onClick={() => void window.windowControls?.toggleMaximize().catch(console.error)}
+          >
+            {isMaximized ? <Copy size={13} /> : <Maximize size={13} />}
+          </button>
+          <button
+            type="button"
+            aria-label="Close window"
+            title="Close"
+            className="titlebar-no-drag inline-flex w-11 items-center justify-center text-[#e4e2dd] transition-colors hover:bg-[#e05252] hover:text-white"
+            onClick={() => window.windowControls?.close()}
+          >
+            <X size={15} />
+          </button>
+        </div>
+      </header>
+    );
+  }
+
   const rememberSearch = (searchTerm: string) => {
     const normalizedTerm = searchTerm.trim();
     if (!normalizedTerm) return;
@@ -241,8 +315,8 @@ export default function WindowTitleBar() {
   };
 
   return (
-    <header className="fixed inset-x-0 top-0 z-130 grid h-10 select-none grid-cols-[minmax(0,1fr)_minmax(180px,360px)_minmax(0,1fr)] items-center border-b-2 dark:border-white/10 border-[#c9a96e] bg-[#0f0e0c] text-[#f0ede8]">
-      <div className="titlebar-drag-region flex h-full min-w-0 items-center gap-1 pl-2">
+    <header className="titlebar-drag-region fixed inset-x-0 top-0 z-130 grid h-10 select-none grid-cols-[minmax(0,1fr)_minmax(180px,360px)_minmax(0,1fr)] items-center border-b-2 dark:border-white/10 border-[#c9a96e] bg-[#0f0e0c] text-[#f0ede8]">
+      <div className="flex h-full min-w-0 items-center gap-1 pl-2">
         <button
           type="button"
           aria-label="Go back"
@@ -380,7 +454,7 @@ export default function WindowTitleBar() {
           aria-label="Minimize window"
           title="Minimize"
           className="titlebar-no-drag inline-flex w-11 items-center justify-center text-[#e4e2dd] transition-colors hover:bg-white/10"
-          onClick={() => window.windowControls?.minimize()}
+          onClick={() => void window.windowControls?.minimize().catch(console.error)}
         >
           <Minus size={15} />
         </button>
@@ -389,7 +463,7 @@ export default function WindowTitleBar() {
           aria-label={isMaximized ? 'Restore window' : 'Maximize window'}
           title={isMaximized ? 'Restore' : 'Maximize'}
           className="titlebar-no-drag inline-flex w-11 items-center justify-center text-[#e4e2dd] transition-colors hover:bg-white/10"
-          onClick={() => window.windowControls?.toggleMaximize()}
+          onClick={() => void window.windowControls?.toggleMaximize().catch(console.error)}
         >
           {isMaximized ? <Copy size={13} /> : <Maximize size={13} />}
         </button>

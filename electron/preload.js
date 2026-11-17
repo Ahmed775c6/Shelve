@@ -1,10 +1,14 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('windowControls', {
-  minimize: () => ipcRenderer.send('window:minimize'),
-  toggleMaximize: () => ipcRenderer.send('window:toggle-maximize'),
+  minimize: () => ipcRenderer.invoke('window:minimize'),
+  toggleMaximize: () => ipcRenderer.invoke('window:toggle-maximize'),
   close: () => ipcRenderer.send('window:close'),
   isMaximized: () => ipcRenderer.invoke('window:is-maximized'),
+  openReadingPlanner: () => ipcRenderer.invoke('reading-planner:open'),
+  quit: () => ipcRenderer.invoke('app:quit'),
+  captureScreenshot: () => ipcRenderer.invoke('window:capture-screenshot'),
+  showNotification: (title, body) => ipcRenderer.invoke('reading-reminder:notify', title, body),
   onMaximizeState: (callback) => {
     const listener = (_event, isMaximized) => callback(isMaximized);
     ipcRenderer.on('window:maximize-state', listener);

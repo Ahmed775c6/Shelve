@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { redirect, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-
+import { Clock9 } from 'lucide-react';
 import BookCard from '../components/book/BookCard';
 import { IBook } from '../models/book';
 import { Book } from 'lucide-react';
@@ -21,6 +21,12 @@ export default function OverviewPage() {
     pagesRead: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const clockInterval = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(clockInterval);
+  }, []);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -102,13 +108,35 @@ export default function OverviewPage() {
   return (
 <>
 {loading ? "laoding .." :     <div className="page-shell">
-      <div className="mb-7">
-        <h1 className="font-semibold  text-2xl text-[#f0ede8] mb-1">
-          Good evening, Reader 🌙
-        </h1>
-        <p className="text-sm text-[#9b9890]">
-          You've read {stats.pagesRead} pages this month. Keep it up.
-        </p>
+      <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="font-semibold text-2xl text-[#f0ede8] mb-1">
+            Good evening, Reader 🌙
+          </h1>
+          <p className="text-sm text-[#9b9890]">
+            You've read {stats.pagesRead} pages this month. Keep it up.
+          </p>
+        </div>
+        <time dateTime={now.toISOString()} className="rounded-xl border border-[rgba(255,255,255,0.07)] bg-[#1a1916] px-4 py-3 text-right">
+     
+          <span className="flex gap-3 font-mono text-2xl font-semibold tabular-nums tracking-tight text-[#c9a96e]">
+          <Clock9 size={20} className="text-[#c9a96e] mt-1" />
+            {new Intl.DateTimeFormat(undefined, {
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+              hourCycle: 'h23',
+            }).format(now)}
+          </span>
+          <span className="mt-1 block text-xs text-[#9b9890]">
+            {new Intl.DateTimeFormat(undefined, {
+              weekday: 'long',
+              month: 'long',
+              day: 'numeric',
+              year: 'numeric',
+            }).format(now)}
+          </span>
+        </time>
       </div>
 
       {/* Stats */}

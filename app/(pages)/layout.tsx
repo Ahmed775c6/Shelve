@@ -23,6 +23,18 @@ export default function RootLayout({
     return () => wideScreenQuery.removeEventListener("change", handleBreakpointChange);
   }, []);
 
+  useEffect(() => {
+    const handleMenuShortcut = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "b") return;
+
+      event.preventDefault();
+      setIsSidebarCollapsed((collapsed) => !collapsed);
+    };
+
+    window.addEventListener("keydown", handleMenuShortcut);
+    return () => window.removeEventListener("keydown", handleMenuShortcut);
+  }, []);
+
   return (
     <div className="app-window-layout flex min-h-screen flex-col lg:flex-row">
       <Sidebar

@@ -1,4 +1,5 @@
 "use client"
+import { useEffect } from "react"
 import { Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
 
@@ -10,7 +11,19 @@ import {
 } from "@/components/ui/dropdown-menu"
 
 export function ModeToggle() {
-  const { setTheme } = useTheme()
+  const { resolvedTheme, setTheme } = useTheme()
+
+  useEffect(() => {
+    const handleThemeShortcut = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "t") return
+
+      event.preventDefault()
+      setTheme(resolvedTheme === "dark" ? "light" : "dark")
+    }
+
+    window.addEventListener("keydown", handleThemeShortcut)
+    return () => window.removeEventListener("keydown", handleThemeShortcut)
+  }, [resolvedTheme, setTheme])
 
   return (
     <DropdownMenu>

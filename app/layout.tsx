@@ -3,6 +3,7 @@ import './globals.css';
 import { ThemeProvider } from './components/providers/theme-provider';
 import Providers from './components/providers/Providers';
 import WindowTitleBar from './components/layout/WindowTitleBar';
+import ReadingReminderService from './components/reading/ReadingReminderService';
 
 export const metadata: Metadata = {
   title: 'Shelve — Your Personal Library',
@@ -29,6 +30,7 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             <WindowTitleBar />
+            <ReadingReminderService />
             <div aria-hidden="true" className="electron-titlebar-spacer" />
             {children}
           </ThemeProvider>

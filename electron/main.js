@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, Notification, dialog, ipcMain } = require('electron');
 const path = require('path');
 const http = require('http');
 const fs = require('fs');
@@ -7,33 +7,151 @@ if (process.platform === 'linux') {
   app.commandLine.appendSwitch('no-sandbox');
 }
 
-const isDev = true;
+const isDev = false;
 const PORT = isDev ? 3000 : 3001;
 const LOADING_SCREEN_DURATION_MS = 5000;
 
 let errorWindow = null;
+let readingPlannerWindow = null;
 
-ipcMain.on('window:minimize', (event) => {
-  BrowserWindow.fromWebContents(event.sender)?.minimize();
+ipcMain.handle('window:minimize', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win || win.isDestroyed()) {
+    throw new Error('Could not find the Shelve window to minimize.');
+  }
+
+  win.minimize();
+  return true;
 });
 
-ipcMain.on('window:toggle-maximize', (event) => {
+ipcMain.handle('window:toggle-maximize', (event) => {
   const win = BrowserWindow.fromWebContents(event.sender);
-  if (!win) return;
+  if (!win || win.isDestroyed()) {
+    throw new Error('Could not find the Shelve window to maximize.');
+  }
 
   if (win.isMaximized()) {
     win.unmaximize();
   } else {
     win.maximize();
   }
+  return true;
 });
 
 ipcMain.on('window:close', (event) => {
   BrowserWindow.fromWebContents(event.sender)?.close();
 });
 
+ipcMain.handle('app:quit', (event) => {
+  if (!BrowserWindow.fromWebContents(event.sender)) {
+    throw new Error('Could not identify the Shelve window requesting the application to quit.');
+  }
+
+  app.quit();
+  return true;
+});
+
+ipcMain.handle('window:capture-screenshot', async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win || win.isDestroyed()) {
+    throw new Error('Could not find the Shelve window to capture.');
+  }
+
+  const image = await win.capturePage();
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const { canceled, filePath } = await dialog.showSaveDialog(win, {
+    title: 'Save screenshot',
+    defaultPath: path.join(app.getPath('pictures'), `shelve-screenshot-${timestamp}.png`),
+    filters: [{ name: 'PNG image', extensions: ['png'] }],
+  });
+
+  if (canceled || !filePath) return null;
+
+  await fs.promises.writeFile(filePath, image.toPNG());
+  return filePath;
+});
+
 ipcMain.handle('window:is-maximized', (event) => {
   return BrowserWindow.fromWebContents(event.sender)?.isMaximized() ?? false;
+});
+
+ipcMain.handle('reading-planner:open', async (event) => {
+  const requester = BrowserWindow.fromWebContents(event.sender);
+  if (!requester) {
+    throw new Error('Could not find the Shelve window that requested the reading planner.');
+  }
+
+  if (readingPlannerWindow && !readingPlannerWindow.isDestroyed()) {
+    if (requester === readingPlannerWindow) {
+      readingPlannerWindow.close();
+      return true;
+    }
+
+    if (readingPlannerWindow.isMinimized()) readingPlannerWindow.restore();
+    readingPlannerWindow.show();
+    readingPlannerWindow.focus();
+    return true;
+  }
+
+  const plannerWindow = new BrowserWindow({
+    width: 720,
+    height: 500,
+    minWidth: 560,
+    minHeight: 400,
+    center: true,
+    frame: false,
+    show: false,
+    resizable: true,
+    minimizable: true,
+    maximizable: true,
+    backgroundColor: '#0f0e0c',
+    title: 'Shelve — Reading planner',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      backgroundThrottling: false,
+    },
+  });
+  readingPlannerWindow = plannerWindow;
+
+  const sendPlannerMaximizeState = () => {
+    if (!plannerWindow.isDestroyed()) {
+      plannerWindow.webContents.send('window:maximize-state', plannerWindow.isMaximized());
+    }
+  };
+  plannerWindow.on('maximize', sendPlannerMaximizeState);
+  plannerWindow.on('unmaximize', sendPlannerMaximizeState);
+  plannerWindow.once('ready-to-show', () => {
+    if (!plannerWindow.isDestroyed()) plannerWindow.show();
+  });
+  plannerWindow.once('closed', () => {
+    if (readingPlannerWindow === plannerWindow) readingPlannerWindow = null;
+  });
+  try {
+    await plannerWindow.loadURL(`http://localhost:${PORT}/reading-planner-window`);
+  } catch (error) {
+    console.error('Failed to open the reading planner window:', error);
+    if (!plannerWindow.isDestroyed()) plannerWindow.close();
+    throw error;
+  }
+
+  return true;
+});
+
+ipcMain.handle('reading-reminder:notify', (event, title, body) => {
+  if (!BrowserWindow.fromWebContents(event.sender)) {
+    throw new Error('Could not identify the Shelve window requesting a notification.');
+  }
+  if (typeof title !== 'string' || typeof body !== 'string') {
+    throw new Error('Reading notification content must be text.');
+  }
+  if (!Notification.isSupported()) return false;
+
+  new Notification({
+    title: title.slice(0, 120),
+    body: body.slice(0, 500),
+  }).show();
+  return true;
 });
 
 const envPath = path.join(__dirname, '../.env');
@@ -186,6 +304,7 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       plugins: true,
+      backgroundThrottling: false,
     },
   });
 
