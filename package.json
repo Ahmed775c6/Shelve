@@ -3,19 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "main": "electron/main.js",
-"scripts": {
-  "dev": "next dev",
-  "dev-next": "next dev",
-  "dev-electron": "wait-on http://localhost:3000 && cross-env NODE_ENV=production electron .",
-  "dev-all": "concurrently \"npm run dev-next\" \"npm run dev-electron\"",
-  "next:build": "next build && node -e \"const fs = require('fs'); fs.cpSync('public', '.next/standalone/public', { recursive: true }); fs.cpSync('.next/static', '.next/standalone/.next/static', { recursive: true });\"",
-  "electron:build": "electron-builder",
-  "build": "npm run next:build && npm run electron:build",
-  "start": "next start",
-  "lint": "eslint",
-  "clean" : "rimraf dist .next out"
-},
-
+  "scripts": {
+    "dev": "next dev",
+    "dev-next": "next dev",
+    "dev-electron": "wait-on http://localhost:3000 && cross-env NODE_ENV=production electron .",
+    "dev-all": "concurrently \"npm run dev-next\" \"npm run dev-electron\"",
+    "next:build": "next build && node -e \"const fs = require('fs'); fs.rmSync('build-server', { recursive: true, force: true }); fs.cpSync('.next/standalone', 'build-server', { recursive: true }); fs.cpSync('public', 'build-server/public', { recursive: true }); fs.cpSync('.next/static', 'build-server/.next/static', { recursive: true });\"",
+    "electron:build": "electron-builder --publish never",
+    "build": "npm run next:build && npm run electron:build",
+    "start": "next start",
+    "lint": "eslint",
+    "clean": "rimraf dist .next out build-server"
+  },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.106.0",
     "@auth/core": "^0.34.3",
@@ -83,35 +82,32 @@
     "tailwindcss": "^4",
     "typescript": "^5"
   },
-"build": {
-  "appId": "com.Shleve.client",
-  "productName": "Shleve",
-  "asar": false,
-  "directories": {
-    "output": "dist"
-  },
-  "files": [
-    "electron/**/*",
-    ".next/standalone/**/*",
-    "public/icon.png",
-    ".env",
-    "package.json"
-  ],
-  "win": {
-    "target": "nsis",
-    "icon": "public/icon.png"
-  },
-  "mac": {
-    "target": "dmg",
-    "icon": "public/icon.png"
-  },
-  "linux": {
-    "target": "AppImage",
-    "icon": "public/icon.png",
-    "category": "Utility"
+  "build": {
+    "appId": "com.Shleve.client",
+    "productName": "Shleve",
+    "asar": false,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**/*",
+      "build-server/**/*",
+      "public/icon.png",
+      ".env",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "public/icon.png"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "public/icon.png"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "public/icon.png",
+      "category": "Utility"
+    }
   }
-}
-
-
-
 }

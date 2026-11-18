@@ -1,18 +1,41 @@
 const { app, BrowserWindow, Notification, dialog, ipcMain } = require('electron');
 const path = require('path');
 const http = require('http');
+const net = require('net');
 const fs = require('fs');
 
 if (process.platform === 'linux') {
   app.commandLine.appendSwitch('no-sandbox');
 }
 
-const isDev = true ;
-const PORT = isDev ? 3000 : 3001;
+const isDev = false;
+let PORT = isDev ? 3000 : 3001;
 const LOADING_SCREEN_DURATION_MS = 5000;
 
 let errorWindow = null;
 let readingPlannerWindow = null;
+
+function getFreePort(preferredPort) {
+  return new Promise((resolve) => {
+    const server = net.createServer();
+    server.unref();
+    server.on('error', () => {
+      const fallback = net.createServer();
+      fallback.unref();
+      fallback.listen(0, '127.0.0.1', () => {
+        const { port } = fallback.address();
+        fallback.close(() => resolve(port));
+      });
+    });
+    server.listen(preferredPort, '127.0.0.1', () => {
+      const { port } = server.address();
+      server.close(() => resolve(port));
+    });
+  });
+}
+
+
+
 const editBookWindows = new Map();
 
 ipcMain.handle('window:minimize', (event) => {
@@ -408,13 +431,15 @@ function loadAppAfterSplash(win, loadingStartedAt) {
   }, remainingTime);
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   if (isDev) {
     const loadingStartedAt = Date.now();
     const win = createWindow();
     loadAppAfterSplash(win, loadingStartedAt);
   } else {
     try {
+      PORT = await getFreePort(3001);
+
       const userUploadsDir = path.join(app.getPath('userData'), 'uploads');
       if (!fs.existsSync(userUploadsDir)) {
         fs.mkdirSync(userUploadsDir, { recursive: true });
@@ -427,7 +452,11 @@ app.whenReady().then(() => {
 
       const loadingStartedAt = Date.now();
       const win = createWindow();
-      const serverPath = path.join(__dirname, '../.next/standalone/server.js');
+
+      const buildServerPath = path.join(__dirname, '../build-server/server.js');
+      const fallbackServerPath = path.join(__dirname, '../.next/standalone/server.js');
+      const serverPath = fs.existsSync(buildServerPath) ? buildServerPath : fallbackServerPath;
+
       require(serverPath);
 
       waitForServer(`http://localhost:${PORT}`, () => {
@@ -438,6 +467,7 @@ app.whenReady().then(() => {
     }
   }
 });
+
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

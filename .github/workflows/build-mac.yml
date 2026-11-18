@@ -1,11 +1,15 @@
-name: Build macOS App
+name: Build Desktop Apps
 
 on:
-  workflow_dispatch: # Allows you to trigger this manually on GitHub
+  workflow_dispatch: # Trigger manually from the Actions tab on GitHub
 
 jobs:
-  build-mac:
-    runs-on: macos-latest
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
 
     steps:
       - name: Checkout code
@@ -20,13 +24,18 @@ jobs:
         run: npm install
 
       - name: Create .env file
-        run: echo "${{ secrets.ENV_FILE }}" > .env
+        shell: bash
+        run: |
+          printf "%s\n" "${{ secrets.ENV_FILE }}" > .env
 
-      - name: Build Next.js and Electron for Mac
+      - name: Build Next.js and Electron
         run: npm run next:build && npx electron-builder --publish never
 
-      - name: Upload macOS DMG
+      - name: Upload Built Installer
         uses: actions/upload-artifact@v4
         with:
-          name: Shleve-macOS
-          path: dist/*.dmg
+          name: Shelve-${{ matrix.os }}
+          path: |
+            dist/*.exe
+            dist/*.dmg
+            dist/*.AppImage
