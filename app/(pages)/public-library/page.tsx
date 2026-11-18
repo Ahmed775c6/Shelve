@@ -431,15 +431,16 @@ console.log('boo; ', book)
             >
               <div className="flex flex-col items-center">
                 {/* 3D Book */}
-                <div 
-                  className="cursor-pointer"
-                  onClick={() => handleBookClick(book)}
-                >
+                <div className="cursor-pointer">
                   <Book3D
                     title={book.title}
                     author={book.author_name?.[0] || 'Unknown Author'}
                     coverImage={getCoverUrl(book.cover_i , 'L')}
                     coverColor={getRandomColor()}
+                    description={typeof book.description === 'string' ? book.description : undefined}
+                    category={book.subject?.[0] || 'General'}
+                    publishedYear={book.first_publish_year}
+                    pages={book.number_of_pages_median}
                   />
                 </div>
 

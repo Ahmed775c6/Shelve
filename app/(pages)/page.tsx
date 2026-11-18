@@ -225,7 +225,7 @@ export default function OverviewPage() {
           <h2 className="text-sm font-medium text-[#9b9890] uppercase tracking-wider">Your shelf</h2>
           <div className="flex-1 h-px bg-[rgba(255,255,255,0.07)]"></div>
         </div>
-        <div className="flex gap-5.5 flex-wrap">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {recentBooks.length > 0 ? (
             recentBooks.map((book: IBook) => (
               <BookCard key={book._id as any} book={book} onAction={(action) => handleAction(book._id   as any,  action)} onClick={()=>{window.location.href = `/read/${book._id}`}}/>

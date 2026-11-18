@@ -100,21 +100,268 @@ body {
 }
 
 /* Book 3D Styles */
+.book-status-glass {
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  background-image: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.34),
+    rgba(255, 255, 255, 0.06) 48%,
+    rgba(255, 255, 255, 0.16)
+  );
+  backdrop-filter: blur(12px) saturate(1.8);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.42),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.12),
+    0 8px 20px rgba(0, 0, 0, 0.24);
+}
+
+.book-status-rotated {
+  transform: rotateZ(90deg);
+  transform-origin: center;
+  transition: transform 250ms ease;
+}
+
+.book-status-rotated:hover {
+  transform: rotateZ(0deg);
+}
+
 .book-3d-wrap {
-  perspective: 600px;
+  perspective: 900px;
   position: relative;
 }
 
 .book-3d {
+  position: absolute;
+  left: 24px;
+  top: 0;
+  width: 132px;
+  height: 188px;
   transform-style: preserve-3d;
+  transform: rotateY(0deg) rotateZ(-1deg);
+  box-shadow: 12px 18px 20px rgba(0, 0, 0, 0.42);
+  transition: transform 700ms ease, box-shadow 300ms ease;
 }
 
-.book-face {
-  backface-visibility: hidden;
+.book-3d:hover {
+  box-shadow: 16px 22px 22px rgba(0, 0, 0, 0.48);
+  transform: translateY(-3px) rotateY(-15deg) rotateZ(-1deg);
 }
 
-.book-spine-3d {
+.book-3d.is-flipped,
+.book-3d.is-flipped:hover {
+  transform: translateY(-3px) rotateY(-180deg) rotateZ(-1deg);
+}
+
+.book-front-cover,
+.book-back-cover {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 3px 7px 7px 3px;
   backface-visibility: hidden;
+  background: #3a1518;
+}
+
+.book-front-cover {
+  transform: translateZ(18px);
+  box-shadow:
+    inset 3px 0 4px rgba(255, 255, 255, 0.1),
+    inset -4px 0 7px rgba(0, 0, 0, 0.22);
+}
+
+.book-front-half {
+  position: absolute;
+  top: 0;
+  width: 50%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.book-front-left { left: 0; }
+.book-front-right { left: 50%; }
+
+.book-front-half img {
+  position: absolute;
+  top: 0;
+  width: 200%;
+  max-width: none;
+  height: 100%;
+  object-fit: cover;
+}
+
+.book-front-left img { left: 0; }
+.book-front-right img { right: 0; }
+
+.book-middle-left,
+.book-middle-right,
+.book-middle-top,
+.book-page-bottom {
+  position: absolute;
+  backface-visibility: hidden;
+  background:
+    repeating-linear-gradient(90deg, #f1ecdf 0, #f1ecdf 3px, #c2baa9 3px, #c2baa9 4px);
+  box-shadow: inset 0 0 7px rgba(71, 63, 48, 0.3);
+}
+
+.book-middle-left {
+  left: 0;
+  top: 0;
+  width: 36px;
+  height: 188px;
+  transform-origin: left;
+  transform: translateZ(18px) rotateY(90deg);
+}
+
+.book-middle-right {
+  right: 0;
+  top: 0;
+  width: 36px;
+  height: 188px;
+  transform-origin: right;
+  transform: translateZ(18px) rotateY(-90deg);
+}
+
+.book-middle-top {
+  left: 0;
+  top: 0;
+  width: 132px;
+  height: 36px;
+  transform-origin: top;
+  transform: translateZ(18px) rotateX(90deg);
+}
+
+.book-page-bottom {
+  left: 0;
+  bottom: 0;
+  width: 132px;
+  height: 36px;
+  transform-origin: bottom;
+  transform: translateZ(18px) rotateX(-90deg);
+  background:
+    repeating-linear-gradient(0deg, #f1ecdf 0, #f1ecdf 3px, #c2baa9 3px, #c2baa9 4px);
+}
+
+.book-back-cover {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+  text-align: center;
+  color: #f7f1e7;
+ 
+  transform: rotateY(180deg) translateZ(18px);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.2);
+}
+
+.book-back-eyebrow {
+  margin-bottom: 10px;
+  font-size: 7px;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  opacity: 0.7;
+}
+
+.book-back-cover strong {
+  font-family: Georgia, serif;
+  font-size: 13px;
+  line-height: 1.15;
+}
+
+.book-back-cover small {
+  margin-top: 5px;
+  font-size: 8px;
+  opacity: 0.8;
+}
+
+.book-back-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: 100%;
+  margin: 9px 0 0;
+  padding: 7px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  gap: 4px;
+}
+
+.book-back-meta div {
+  min-width: 0;
+  text-align: center;
+}
+
+.book-back-meta dt {
+  font-size: 5px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  opacity: 0.58;
+}
+
+.book-back-meta dd {
+  margin: 3px 0 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 7px;
+  font-weight: 600;
+}
+
+.book-back-cover p {
+  margin: 8px 0 0;
+  max-height: 42px;
+  overflow: hidden;
+  font-size: 7px;
+  line-height: 1.55;
+  opacity: 0.72;
+}
+
+.book-cover-design {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.book-cover-line-left,
+.book-cover-line-right {
+  position: absolute;
+  top: 24px;
+  width: 22px;
+  height: 6px;
+  border-top: 3px solid rgba(255, 255, 255, 0.75);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.75);
+}
+
+.book-cover-line-left { left: 0; }
+.book-cover-line-right { right: 0; }
+
+.book-cover-title {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  color: white;
+  text-shadow: 0 2px 5px rgba(0, 0, 0, 0.45);
+}
+
+.book-cover-title span {
+  max-height: 52px;
+  overflow: hidden;
+  font-family: Georgia, serif;
+  font-size: 15px;
+  line-height: 1.05;
+}
+
+.book-cover-title small {
+  margin-top: 5px;
+  font-size: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  opacity: 0.78;
 }
 
 /* Book Colors */
@@ -132,6 +379,20 @@ body {
 .c-amber .book-spine-3d { background: #2e1e08; }
 .c-slate { background: linear-gradient(160deg, #253040 0%, #3d4e62 100%); }
 .c-slate .book-spine-3d { background: #1a222e; }
+.c-rose { background: linear-gradient(160deg, #6b1f3a 0%, #c2416c 100%); }
+.c-rose .book-spine-3d { background: #47152b; }
+.c-orange { background: linear-gradient(160deg, #7c2d12 0%, #ea580c 100%); }
+.c-orange .book-spine-3d { background: #55200e; }
+.c-gold { background: linear-gradient(160deg, #5c3c0e 0%, #c8972d 100%); }
+.c-gold .book-spine-3d { background: #3c280b; }
+.c-indigo { background: linear-gradient(160deg, #28235f 0%, #5151a5 100%); }
+.c-indigo .book-spine-3d { background: #1b1743; }
+.c-cyan { background: linear-gradient(160deg, #134e5e 0%, #168fa0 100%); }
+.c-cyan .book-spine-3d { background: #0c3742; }
+.c-forest { background: linear-gradient(160deg, #16382c 0%, #39805c 100%); }
+.c-forest .book-spine-3d { background: #10271e; }
+.c-charcoal { background: linear-gradient(160deg, #202329 0%, #545962 100%); }
+.c-charcoal .book-spine-3d { background: #17191e; }
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }

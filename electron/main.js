@@ -7,7 +7,7 @@ if (process.platform === 'linux') {
   app.commandLine.appendSwitch('no-sandbox');
 }
 
-const isDev = false;
+const isDev = true ;
 const PORT = isDev ? 3000 : 3001;
 const LOADING_SCREEN_DURATION_MS = 5000;
 

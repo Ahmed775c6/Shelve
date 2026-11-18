@@ -16,58 +16,78 @@ export default function BookCard({ book, onClick, onAction }: BookCardProps) {
 
   const badgeClass =
     book.status === 'archived'
-      ? 'bg-[rgba(92,90,86,0.1)] text-[#5c5a56]'
+      ? 'bg-[rgba(92,90,86,0.32)] text-[#f0ede8]'
       : book.category === 'Fantasy'
-      ? 'bg-[rgba(139,125,216,0.15)] text-[#a78bfa]'
+      ? 'bg-[rgba(139,125,216,0.38)] text-[#d6c9ff]'
       : book.category === 'Sci-fi'
-      ? 'bg-[rgba(56,138,221,0.15)] text-[#60a5fa]'
-      : 'bg-[rgba(201,169,110,0.15)] text-[#c9a96e]';
+      ? 'bg-[rgba(56,138,221,0.38)] text-[#c7e2ff]'
+      : 'bg-[rgba(201,169,110,0.38)] text-[#ffe3b0]';
 
   return (
-    <div className="group w-fit rounded-[28px] border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] p-4 transition duration-300 hover:border-[rgba(255,255,255,0.16)] hover:shadow-[0_20px_50px_rgba(0,0,0,0.18)]">
+    <div className=" relative ">
       <Book3D
         title={book.title}
         author={book.author}
         coverColor={book.coverColor}
         coverImage={book.coverImage}
+        description={book.description}
+        category={book.category}
+        pages={book.totalPages}
         progress={progress}
-        onClick={onClick}
       />
-      <div className="w-full">
-        <div className="flex items-center justify-between gap-3">
-          <span className={`text-[9px] px-2 py-0.5 rounded-full font-medium ${badgeClass}`}>
-            {book.status === 'archived' ? 'Archived' : book.category}
-          </span>
-        </div>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {book.status === 'unread' && (
+      <div
+        className="book-status-rotated absolute left-25 top-16 z-10 mt-2 flex flex-col items-center gap-1"
+      >
+        {book.status === 'unread' && (
+          <div className={`book-status-glass flex flex-col items-center gap-1 rounded-md px-4 py-2 text-[13px] font-medium ${badgeClass}`}>
+            <span className="whitespace-nowrap text-[14px] font-semibold text-white">Pending 🧐</span>
             <button
               type="button"
               onClick={() => onAction?.('read')}
-              className="rounded-full bg-[var(--accent)] px-3 py-1 text-[11px] font-medium text-[#1a1510]"
+              className="cursor-pointer rounded-full border border-[rgba(255,255,255,0.08)] bg-[rgba(250,175,63,0.9)] px-4 py-1.5 text-[13px] font-semibold text-white"
             >
               Start reading
             </button>
-          )}
-          {book.status === 'reading' && (
-            <button
-              type="button"
-              onClick={() => onAction?.('archive')}
-              className="rounded-full bg-[var(--green)] px-3 py-1 text-[11px] font-medium text-white"
-            >
-              Mark finished
-            </button>
-          )}
-          {book.status === 'archived' && (
             <button
               type="button"
               onClick={() => onAction?.('details')}
-              className="rounded-full bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.08)] px-3 py-1 text-[11px] font-medium text-[var(--ink-soft)]"
+              className="cursor-pointer rounded-full border border-[rgba(255,255,255,0.2)] bg-[rgba(255,255,255,0.12)] px-4 py-1.5 text-[13px] font-semibold text-white"
             >
               View details
             </button>
-          )}
-        </div>
+          </div>
+        )}
+        {book.status === 'reading' && (
+          <div className={`book-status-glass flex flex-col items-center gap-1 rounded-md px-4 py-2 text-[13px] font-medium ${badgeClass}`}>
+            <span className="whitespace-nowrap text-[14px] font-semibold text-white">In progress {progress}% 🤓</span>
+            <button
+              type="button"
+              onClick={() => onAction?.('archive')}
+              className="cursor-pointer rounded-full border border-[rgba(255,255,255,0.08)] bg-[rgba(250,175,63,0.9)] px-4 py-1.5 text-[13px] font-semibold text-white"
+            >
+              Finish it?
+            </button>
+            <button
+              type="button"
+              onClick={() => onAction?.('details')}
+              className="cursor-pointer rounded-full border border-[rgba(255,255,255,0.2)] bg-[rgba(255,255,255,0.12)] px-4 py-1.5 text-[13px] font-semibold text-white"
+            >
+              View details
+            </button>
+          </div>
+        )}
+        {book.status === 'archived' && (
+          <div className={`book-status-glass flex flex-col items-center gap-1 rounded-md px-4 py-2 text-[13px] font-medium ${badgeClass}`}>
+            <span className="flex gap-2 whitespace-nowrap text-[14px] font-semibold text-white">Finished 🥳</span>
+            <button
+              type="button"
+              onClick={() => onAction?.('details')}
+              className="cursor-pointer rounded-full border border-[rgba(255,255,255,0.08)] bg-[rgba(250,175,63,0.9)] px-4 py-1.5 text-[13px] font-semibold text-white"
+            >
+              View details
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

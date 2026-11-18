@@ -1,55 +1,89 @@
 'use client';
 
+import { useState } from 'react';
+
 interface Book3DProps {
   title: string;
   author: string;
   coverColor: string;
   coverImage?: string;
+  description?: string;
+  category?: string;
+  publishedYear?: number;
+  pages?: number;
   progress?: number;
-  onClick?: () => void;
 }
 
-export default function Book3D({ title, author, coverColor, coverImage, progress = 0, onClick }: Book3DProps) {
+export default function Book3D({
+  title,
+  author,
+  coverColor,
+  coverImage,
+  description,
+  category,
+  publishedYear,
+  pages,
+  progress = 0,
+}: Book3DProps) {
+  const [flipped, setFlipped] = useState(false);
   const circumference = 50.27;
   const offset = circumference - (progress / 100) * circumference;
 
   return (
-    <div className="book-item cursor-pointer" onClick={onClick}>
-      <div className="book-3d-wrap w-40  relative mb-2.5">
-        <div className="book-3d  h-[116px] transform-style-3d transform -rotate-y-15 transition-transform duration-300 hover:rotate-y-5 hover:translate-x-1">
-          <div className={`book-face absolute w-full h-full rounded-[2px_5px_5px_2px] backface-hidden flex flex-col justify-end p-2 overflow-hidden ${!coverImage ? coverColor : ''}`}>
-            {coverImage && (
-              <img 
-                src={coverImage} 
-                alt={title} 
-                className="absolute inset-0 w-full h-full  object-cover rounded-[2px_5px_5px_2px]"
-              />
+    <div className="w-fit h-fit  cursor-pointer" onClick={(event) => {
+      event.stopPropagation();
+      setFlipped((value) => !value);
+    }}>
+      <div className="book-3d-wrap relative mb-3 h-[205px] w-[190px]">
+        <div className={`book-3d ${flipped ? 'is-flipped' : ''}`}>
+          <div className="book-front-cover">
+            <div className={`book-front-half book-front-left ${!coverImage ? coverColor : ''}`}>
+              {coverImage && <img src={coverImage} alt="" />}
+            </div>
+            <div className={`book-front-half book-front-right ${!coverImage ? coverColor : ''}`}>
+              {coverImage && <img src={coverImage} alt={title} />}
+            </div>
+
+            {!coverImage && (
+              <div className="book-cover-design">
+                <div className="book-cover-line-left" />
+                <div className="book-cover-line-right" />
+                <div className="book-cover-title">
+                  <span>{title}</span>
+                  <small>by {author}</small>
+                </div>
+              </div>
             )}
+
             {progress > 0 && (
-              <svg className="absolute top-1.5 right-1.5 w-5 h-5 z-10" viewBox="0 0 22 22">
+              <svg className="absolute top-1.5 right-1.5 w-5 h-5 z-20" viewBox="0 0 22 22">
                 <circle cx="11" cy="11" r="8" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="2.5"/>
-                <circle cx="11" cy="11" r="8" fill="none" stroke="rgba(245, 168, 35, 0.85)" strokeWidth="2.5" 
-                  strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round" 
+                <circle cx="11" cy="11" r="8" fill="none" stroke="rgba(245, 168, 35, 0.85)" strokeWidth="2.5"
+                  strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round"
                   transform="rotate(-90 11 11)"/>
               </svg>
             )}
-            {!coverImage && (
-              <div className="book-face-title text-[9px] text-white/85 font-medium leading-tight relative z-5">
-                {title}
-              </div>
-            )}
           </div>
-          <div className="book-spine-3d absolute -left-[9px] top-0 w-2.5 h-[116px] transform rotate-y-90 origin-right backface-hidden rounded-l-[2px]"></div>
+
+          <div className="book-middle-left" />
+          <div className="book-middle-right" />
+          <div className="book-middle-top" />
+          <div className="book-page-bottom" />
+
+          <div className={`book-back-cover ${coverColor}`}>
+            <span className="book-back-eyebrow">Book details</span>
+            <strong>{title}</strong>
+            <small>{author}</small>
+            <dl className="book-back-meta">
+              {category && <div><dt>Category</dt><dd>{category}</dd></div>}
+              {publishedYear && <div><dt>Published</dt><dd>{publishedYear}</dd></div>}
+              {pages ? <div><dt>Pages</dt><dd>{pages}</dd></div> : null}
+            </dl>
+            <p>{description || 'A story waiting to be discovered.'}</p>
+          </div>
         </div>
       </div>
-      <div className="book-meta">
-        <div className="book-title text-xs font-medium text-[#f0ede8] leading-tight max-w-[80px]">
-          {title}
-        </div>
-        <div className="book-author-sm text-[10px] text-[#5c5a56] max-w-[80px] truncate">
-          {author}
-        </div>
-      </div>
+  
     </div>
   );
 }

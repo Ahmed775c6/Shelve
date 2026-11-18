@@ -370,6 +370,13 @@ export default function ReadBookPage() {
     { id: 'c-teal', gradient: 'from-[#0f3d38] to-[#1d6b63]' },
     { id: 'c-amber', gradient: 'from-[#4a3010] to-[#7a5020]' },
     { id: 'c-slate', gradient: 'from-[#253040] to-[#3d4e62]' },
+    { id: 'c-rose', gradient: 'from-[#6b1f3a] to-[#c2416c]' },
+    { id: 'c-orange', gradient: 'from-[#7c2d12] to-[#ea580c]' },
+    { id: 'c-gold', gradient: 'from-[#5c3c0e] to-[#c8972d]' },
+    { id: 'c-indigo', gradient: 'from-[#28235f] to-[#5151a5]' },
+    { id: 'c-cyan', gradient: 'from-[#134e5e] to-[#168fa0]' },
+    { id: 'c-forest', gradient: 'from-[#16382c] to-[#39805c]' },
+    { id: 'c-charcoal', gradient: 'from-[#202329] to-[#545962]' },
   ];
 
   if (status === 'loading' || loading) {

@@ -125,7 +125,7 @@ export default function LibraryPage() {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-3 p-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 p-8">
           {filteredBooks.length > 0 ? (
             filteredBooks.map((book: any) => (
               <BookCard
