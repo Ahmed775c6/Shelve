@@ -1,0 +1,137 @@
+.viewport {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: min(60vh, 460px);
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 12px;
+}
+
+.book {
+  position: relative;
+  flex: none;
+  cursor: grab;
+  touch-action: pan-y;
+}
+
+.book:active {
+  cursor: grabbing;
+}
+
+.page {
+  position: relative;
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  overflow: hidden;
+  padding: clamp(24px, 4vw, 52px) clamp(20px, 4vw, 48px) 36px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: inset 0 0 22px rgba(80, 65, 38, 0.05);
+  cursor: grab;
+  user-select: text;
+}
+
+.page:active {
+  cursor: grabbing;
+}
+
+.light {
+  color: #302b23;
+  background: #fffefa;
+}
+
+.dark {
+  color: #e4ded2;
+  background: #25221d;
+}
+
+.sepia {
+  color: #3d3a32;
+  background: #f4ecd8;
+}
+
+.heading {
+  flex: none;
+  margin-bottom: 28px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid currentColor;
+  text-align: center;
+  opacity: 0.82;
+}
+
+.heading h2 {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1.15em;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.heading p {
+  margin-top: 6px;
+  font-size: 0.72em;
+  font-style: italic;
+  opacity: 0.7;
+}
+
+.body {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  font-family: Georgia, 'Times New Roman', serif;
+  line-height: 1.85;
+  text-align: justify;
+}
+
+.body p {
+  margin: 0 0 1.2em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.page footer {
+  position: absolute;
+  inset: auto 0 12px;
+  font-family: Arial, sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  opacity: 0.4;
+  text-align: center;
+}
+
+.hint,
+.loading,
+.error {
+  position: absolute;
+  right: 12px;
+  bottom: 8px;
+  left: 12px;
+  color: #9b9890;
+  font-family: Arial, sans-serif;
+  font-size: 11px;
+  pointer-events: none;
+  text-align: center;
+}
+
+.loading {
+  top: 50%;
+  bottom: auto;
+  transform: translateY(-50%);
+}
+
+.error {
+  color: #e05252;
+}
+
+@media (max-width: 720px) {
+  .viewport {
+    min-height: min(55vh, 420px);
+    padding: 8px;
+  }
+
+  .page {
+    padding: 26px 22px 34px;
+  }
+}

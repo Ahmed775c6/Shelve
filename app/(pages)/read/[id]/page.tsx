@@ -1,14 +1,14 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { IBook } from '@/app/models/book';
 import { 
-  Save, Edit2, Trash2, Clock, BookOpen, 
+  Save, Trash2, Clock, BookOpen, 
   Star, MessageSquare, Plus, X, Pencil,
-  UploadCloud, Image as ImageIcon, ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight
 } from 'lucide-react';
 
 const PdfReader = dynamic(() => import('@/app/components/reader/PdfReader'), {
@@ -57,23 +57,6 @@ export default function ReadBookPage() {
   const [deletingBook, setDeletingBook] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  // Edit book state
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editData, setEditData] = useState({
-    title: '',
-    author: '',
-    category: '',
-    totalPages: 0,
-    description: '',
-    story: '',
-    coverColor: 'c-blue',
-    coverImage: '',
-  });
-  const [uploadingCover, setUploadingCover] = useState(false);
-  const [coverFile, setCoverFile] = useState<File | null>(null);
-  const [coverPreview, setCoverPreview] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/auth/signin');
@@ -92,20 +75,6 @@ export default function ReadBookPage() {
           setBook(data);
           setPreviewPdfPage(0);
           setPreviewPdfPageCount(0);
-          setEditData({
-            title: data.title,
-            author: data.author,
-            category: data.category,
-            totalPages: data.totalPages,
-            description: data.description || '',
-            story: data.story || '',
-            coverColor: data.coverColor || 'c-blue',
-            coverImage: data.coverImage || '',
-          });
-          if (data.coverImage) {
-            setCoverPreview(data.coverImage);
-          }
-          
           // Load notes for this book
           await loadNotes();
         } catch (err) {
@@ -131,6 +100,22 @@ export default function ReadBookPage() {
       console.error('Error loading notes:', err);
     }
   };
+
+  useEffect(() => {
+    const handleBookUpdated = (event: MessageEvent<{ type?: string; bookId?: string; book?: IBook }>) => {
+      if (event.origin !== window.location.origin) return;
+      if (event.data?.type !== 'book-updated' || event.data.bookId !== id || !event.data.book) return;
+      setBook(event.data.book);
+    };
+
+    window.addEventListener('message', handleBookUpdated);
+    const channel = new BroadcastChannel('shelve-book-updates');
+    channel.addEventListener('message', handleBookUpdated);
+    return () => {
+      window.removeEventListener('message', handleBookUpdated);
+      channel.close();
+    };
+  }, [id]);
 
   const updateStatus = async (payload: any) => {
     if (!id) return;
@@ -173,105 +158,6 @@ export default function ReadBookPage() {
       setShowDeleteConfirm(false);
     } finally {
       setDeletingBook(false);
-    }
-  };
-
-  // Edit book
-  const handleEditBook = async () => {
-    if (!id) return;
-    if (!editData.title.trim() || !editData.author.trim()) {
-      setError('Title and author are required');
-      return;
-    }
-
-    setSavingNote(true);
-
-    try {
-      let coverImageUrl = editData.coverImage;
-      
-      // Upload cover image if a new file is selected
-      if (coverFile) {
-        const formData = new FormData();
-        formData.append('file', coverFile);
-        formData.append('type', 'image');
-
-        const uploadRes = await fetch('/api/uploadthing', {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (!uploadRes.ok) {
-          throw new Error('Failed to upload cover image');
-        }
-        
-        const uploadData = await uploadRes.json();
-        if (uploadData.fileUrl) {
-          coverImageUrl = uploadData.fileUrl;
-        }
-      }
-
-      const res = await fetch(`/api/books/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: editData.title.trim(),
-          author: editData.author.trim(),
-          category: editData.category || 'Other',
-          totalPages: parseInt(editData.totalPages as any) || 0,
-          description: editData.description.trim(),
-          story: editData.story.trim() || undefined,
-          coverColor: editData.coverColor,
-          coverImage: coverImageUrl || undefined,
-        }),
-      });
-
-      if (res.ok) {
-        const updated = await res.json();
-        setBook(updated);
-        setEditData({
-          title: updated.title,
-          author: updated.author,
-          category: updated.category,
-          totalPages: updated.totalPages,
-          description: updated.description || '',
-          story: updated.story || '',
-          coverColor: updated.coverColor || 'c-blue',
-          coverImage: updated.coverImage || '',
-        });
-        setCoverPreview(updated.coverImage || null);
-        setCoverFile(null);
-        setShowEditModal(false);
-        setError('');
-      } else {
-        const errData = await res.json();
-        setError(errData.error || 'Failed to update book');
-      }
-    } catch (err) {
-      console.error('Error updating book:', err);
-      setError(err instanceof Error ? err.message : 'Failed to update book');
-    } finally {
-      setSavingNote(false);
-    }
-  };
-
-  const handleCoverSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setCoverFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setCoverPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleRemoveCover = () => {
-    setCoverFile(null);
-    setCoverPreview(null);
-    setEditData({ ...editData, coverImage: '' });
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
     }
   };
 
@@ -362,23 +248,6 @@ export default function ReadBookPage() {
     });
   };
 
-  const coverColors = [
-    { id: 'c-blue', gradient: 'from-[#1e3a5f] to-[#2d5a8e]' },
-    { id: 'c-purple', gradient: 'from-[#2d2460] to-[#4a3d9e]' },
-    { id: 'c-red', gradient: 'from-[#5a1f1f] to-[#8b3030]' },
-    { id: 'c-green', gradient: 'from-[#1a3d28] to-[#2d6645]' },
-    { id: 'c-teal', gradient: 'from-[#0f3d38] to-[#1d6b63]' },
-    { id: 'c-amber', gradient: 'from-[#4a3010] to-[#7a5020]' },
-    { id: 'c-slate', gradient: 'from-[#253040] to-[#3d4e62]' },
-    { id: 'c-rose', gradient: 'from-[#6b1f3a] to-[#c2416c]' },
-    { id: 'c-orange', gradient: 'from-[#7c2d12] to-[#ea580c]' },
-    { id: 'c-gold', gradient: 'from-[#5c3c0e] to-[#c8972d]' },
-    { id: 'c-indigo', gradient: 'from-[#28235f] to-[#5151a5]' },
-    { id: 'c-cyan', gradient: 'from-[#134e5e] to-[#168fa0]' },
-    { id: 'c-forest', gradient: 'from-[#16382c] to-[#39805c]' },
-    { id: 'c-charcoal', gradient: 'from-[#202329] to-[#545962]' },
-  ];
-
   if (status === 'loading' || loading) {
     return (
       <div className="page-shell flex items-center justify-center min-h-[400px]">
@@ -409,208 +278,6 @@ export default function ReadBookPage() {
 
   return (
     <div className="page-shell max-w-7xl mx-auto">
-      {/* Edit Book Modal */}
-      {showEditModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-[#1a1916] border border-[rgba(255,255,255,0.12)] rounded-xl p-6 max-w-2xl w-full">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-serif text-[#f0ede8]">Edit Book</h3>
-              <button 
-                onClick={() => setShowEditModal(false)}
-                className="text-[#5c5a56] hover:text-[#9b9890] transition-colors"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            
-            {error && (
-              <div className="mb-4 p-3 bg-[rgba(224,82,82,0.1)] border border-[rgba(224,82,82,0.25)] rounded-lg text-sm text-[#e05252]">
-                {error}
-              </div>
-            )}
-            
-            <div className="space-y-4">
-              {/* Cover Image Upload */}
-              <div>
-                <label className="block text-[11px] text-[#5c5a56] uppercase tracking-wider mb-1.5">
-                  Book Cover
-                </label>
-                <div className="flex items-center gap-4">
-                  <div className="relative w-24 h-34 rounded-lg overflow-hidden bg-[#0f0e0c] border border-[rgba(255,255,255,0.07)]">
-                    {coverPreview ? (
-                      <img 
-                        src={coverPreview} 
-                        alt="Book cover" 
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className={`w-full h-full bg-gradient-to-br ${coverColors.find(c => c.id === editData.coverColor)?.gradient || 'from-[#253040] to-[#3d4e62]'}`}>
-                        <div className="flex items-center justify-center h-full">
-                          <span className="text-xs text-white/60 font-medium px-2 text-center">
-                            {editData.title || 'No cover'}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      accept="image/*"
-                      onChange={handleCoverSelect}
-                      className="hidden"
-                    />
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-[#222119] border border-[rgba(255,255,255,0.07)] rounded-lg text-sm text-[#9b9890] hover:text-[#f0ede8] hover:border-[rgba(255,255,255,0.12)] transition-colors"
-                    >
-                      <UploadCloud size={14} />
-                      Upload Image
-                    </button>
-                    {coverPreview && (
-                      <button
-                        onClick={handleRemoveCover}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-[rgba(224,82,82,0.1)] text-[#e05252] border border-[rgba(224,82,82,0.25)] rounded-lg text-sm hover:bg-[rgba(224,82,82,0.15)] transition-colors"
-                      >
-                        <Trash2 size={14} />
-                        Remove
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div>
-                  <label className="block text-[11px] text-[#5c5a56] uppercase tracking-wider mb-1.5">
-                    Title
-                  </label>
-                  <input
-                    type="text"
-                    value={editData.title}
-                    onChange={(e) => setEditData({ ...editData, title: e.target.value })}
-                    className="w-full bg-[#0f0e0c] border border-[rgba(255,255,255,0.07)] rounded-lg px-3 py-2 text-sm text-[#f0ede8] placeholder:text-[#5c5a56] focus:border-[#c9a96e] outline-none transition-colors"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] text-[#5c5a56] uppercase tracking-wider mb-1.5">
-                    Author
-                  </label>
-                  <input
-                    type="text"
-                    value={editData.author}
-                    onChange={(e) => setEditData({ ...editData, author: e.target.value })}
-                    className="w-full bg-[#0f0e0c] border border-[rgba(255,255,255,0.07)] rounded-lg px-3 py-2 text-sm text-[#f0ede8] placeholder:text-[#5c5a56] focus:border-[#c9a96e] outline-none transition-colors"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div>
-                  <label className="block text-[11px] text-[#5c5a56] uppercase tracking-wider mb-1.5">
-                    Category
-                  </label>
-                  <select
-                    value={editData.category}
-                    onChange={(e) => setEditData({ ...editData, category: e.target.value })}
-                    className="w-full bg-[#0f0e0c] border border-[rgba(255,255,255,0.07)] rounded-lg px-3 py-2 text-sm text-[#f0ede8] focus:border-[#c9a96e] outline-none transition-colors"
-                  >
-                    <option value="">Select a category</option>
-                    <option value="Fantasy">Fantasy</option>
-                    <option value="Sci-fi">Sci-fi</option>
-                    <option value="Fiction">Fiction</option>
-                    <option value="Non-fiction">Non-fiction</option>
-                    <option value="Self-help">Self-help</option>
-                    <option value="History">History</option>
-                    <option value="Science">Science</option>
-                    <option value="Biography">Biography</option>
-                    <option value="Philosophy">Philosophy</option>
-                    <option value="Psychologie">Psychologie</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[11px] text-[#5c5a56] uppercase tracking-wider mb-1.5">
-                    Total Pages
-                  </label>
-                  <input
-                    type="number"
-                    value={editData.totalPages}
-                    onChange={(e) => setEditData({ ...editData, totalPages: parseInt(e.target.value) || 0 })}
-                    className="w-full bg-[#0f0e0c] border border-[rgba(255,255,255,0.07)] rounded-lg px-3 py-2 text-sm text-[#f0ede8] placeholder:text-[#5c5a56] focus:border-[#c9a96e] outline-none transition-colors"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[11px] text-[#5c5a56] uppercase tracking-wider mb-1.5">
-                  Description
-                </label>
-                <textarea
-                  value={editData.description}
-                  onChange={(e) => setEditData({ ...editData, description: e.target.value })}
-                  rows={3}
-                  className="w-full bg-[#0f0e0c] border border-[rgba(255,255,255,0.07)] rounded-lg px-3 py-2 text-sm text-[#f0ede8] placeholder:text-[#5c5a56] focus:border-[#c9a96e] outline-none transition-colors resize-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] text-[#5c5a56] uppercase tracking-wider mb-1.5">
-                  Story (optional)
-                </label>
-                <textarea
-                  value={editData.story}
-                  onChange={(e) => setEditData({ ...editData, story: e.target.value })}
-                  rows={4}
-                  className="w-full bg-[#0f0e0c] border border-[rgba(255,255,255,0.07)] rounded-lg px-3 py-2 text-sm text-[#f0ede8] placeholder:text-[#5c5a56] focus:border-[#c9a96e] outline-none transition-colors resize-none"
-                />
-              </div>
-
-              {/* Cover Color Selection (fallback) */}
-              <div>
-                <label className="block text-[11px] text-[#5c5a56] uppercase tracking-wider mb-1.5">
-                  Cover Color (if no image)
-                </label>
-                <div className="flex gap-2 flex-wrap">
-                  {coverColors.map((color) => (
-                    <button
-                      key={color.id}
-                      type="button"
-                      onClick={() => setEditData({ ...editData, coverColor: color.id })}
-                      className={`w-8 h-11 rounded-[3px_5px_5px_3px] bg-gradient-to-br ${color.gradient} border-2 transition-colors ${
-                        editData.coverColor === color.id && !coverPreview
-                          ? 'border-[#c9a96e]'
-                          : 'border-transparent hover:border-[rgba(255,255,255,0.12)]'
-                      }`}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowEditModal(false);
-                  setError('');
-                }}
-                className="px-4 py-2 text-sm text-[#9b9890] hover:text-[#f0ede8] transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleEditBook}
-                disabled={savingNote}
-                className="flex items-center gap-2 px-4 py-2 bg-[#c9a96e] text-[#1a1510] rounded-lg text-sm font-medium hover:bg-[#d4b47a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Save size={16} />
-                {savingNote ? 'Saving...' : 'Save Changes'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -670,7 +337,24 @@ export default function ReadBookPage() {
               <p className="text-sm text-[#9b9890]">{book.author}</p>
             </div>
             <button
-              onClick={() => setShowEditModal(true)}
+              onClick={() => {
+                const editUrl = `/edit-book/${id}`;
+                if (window.windowControls) {
+                  void window.windowControls.openEditBook(id).catch((openError: unknown) => {
+                    console.error('Failed to open the book editor window:', openError);
+                    router.push(editUrl);
+                  });
+                  return;
+                }
+
+                const editWindow = window.open(
+                  editUrl,
+                  `shelve-edit-book-${id}`,
+                  'popup,width=760,height=900'
+                );
+                if (!editWindow) router.push(editUrl);
+              }}
+              aria-label="Edit book in a new window"
               className="flex items-center gap-1.5 px-3 py-1.5 bg-[#222119] text-[#9b9890] border border-[rgba(255,255,255,0.07)] rounded-lg text-sm hover:text-[#f0ede8] hover:border-[rgba(255,255,255,0.12)] transition-colors"
             >
               <Pencil size={14} />

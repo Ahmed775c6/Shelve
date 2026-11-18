@@ -218,12 +218,15 @@ export default function WindowTitleBar() {
   const buttonClass =
     'inline-flex size-9 items-center justify-center text-[#e4e2dd] transition-colors hover:bg-white/10 disabled:cursor-default disabled:text-white/30 disabled:hover:bg-transparent';
 
-  if (pathname === '/reading-planner-window') {
+  const isReadingPlannerWindow = pathname === '/reading-planner-window';
+  const isEditBookWindow = pathname.startsWith('/edit-book/');
+
+  if (isReadingPlannerWindow || isEditBookWindow) {
     return (
       <header className="titlebar-drag-region fixed inset-x-0 top-0 z-130 flex h-10 select-none items-center justify-between border-b-2 border-[#c9a96e] bg-[#0f0e0c] text-[#f0ede8] dark:border-white/10">
         <div className="ml-4 flex items-center gap-2 text-xs font-medium tracking-wide text-[#c9a96e]">
           <BookOpen size={15} />
-          <span>Shelve/Schedule</span>
+          <span>{isReadingPlannerWindow ? 'Shelve/Schedule' : 'Shelve/Edit Book'}</span>
         </div>
         <div className="flex h-full items-stretch">
           <button

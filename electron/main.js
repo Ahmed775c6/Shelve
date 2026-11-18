@@ -13,6 +13,7 @@ const LOADING_SCREEN_DURATION_MS = 5000;
 
 let errorWindow = null;
 let readingPlannerWindow = null;
+const editBookWindows = new Map();
 
 ipcMain.handle('window:minimize', (event) => {
   const win = BrowserWindow.fromWebContents(event.sender);
@@ -132,6 +133,69 @@ ipcMain.handle('reading-planner:open', async (event) => {
   } catch (error) {
     console.error('Failed to open the reading planner window:', error);
     if (!plannerWindow.isDestroyed()) plannerWindow.close();
+    throw error;
+  }
+
+  return true;
+});
+
+ipcMain.handle('edit-book:open', async (event, bookId) => {
+  const requester = BrowserWindow.fromWebContents(event.sender);
+  if (!requester) {
+    throw new Error('Could not find the Shelve window that requested the book editor.');
+  }
+  if (typeof bookId !== 'string' || !/^[A-Za-z0-9_-]+$/.test(bookId)) {
+    throw new Error('A valid book ID is required to open the book editor.');
+  }
+
+  const existingWindow = editBookWindows.get(bookId);
+  if (existingWindow && !existingWindow.isDestroyed()) {
+    if (existingWindow.isMinimized()) existingWindow.restore();
+    existingWindow.show();
+    existingWindow.focus();
+    return true;
+  }
+
+  const editorWindow = new BrowserWindow({
+    width: 800,
+    height: 550,
+    minWidth: 560,
+    minHeight:500,
+    center: true,
+    frame: false,
+    show: false,
+    resizable: true,
+    minimizable: true,
+    maximizable: true,
+    backgroundColor: '#0f0e0c',
+    title: 'Shelve — Edit Book',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      backgroundThrottling: false,
+    },
+  });
+  editBookWindows.set(bookId, editorWindow);
+
+  const sendEditorMaximizeState = () => {
+    if (!editorWindow.isDestroyed()) {
+      editorWindow.webContents.send('window:maximize-state', editorWindow.isMaximized());
+    }
+  };
+  editorWindow.on('maximize', sendEditorMaximizeState);
+  editorWindow.on('unmaximize', sendEditorMaximizeState);
+  editorWindow.once('ready-to-show', () => {
+    if (!editorWindow.isDestroyed()) editorWindow.show();
+  });
+  editorWindow.once('closed', () => {
+    if (editBookWindows.get(bookId) === editorWindow) editBookWindows.delete(bookId);
+  });
+
+  try {
+    await editorWindow.loadURL(`http://localhost:${PORT}/edit-book/${encodeURIComponent(bookId)}`);
+  } catch (error) {
+    console.error('Failed to open the book editor window:', error);
+    if (!editorWindow.isDestroyed()) editorWindow.close();
     throw error;
   }
 

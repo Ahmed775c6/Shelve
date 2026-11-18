@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('windowControls', {
   close: () => ipcRenderer.send('window:close'),
   isMaximized: () => ipcRenderer.invoke('window:is-maximized'),
   openReadingPlanner: () => ipcRenderer.invoke('reading-planner:open'),
+  openEditBook: (bookId) => ipcRenderer.invoke('edit-book:open', bookId),
   quit: () => ipcRenderer.invoke('app:quit'),
   captureScreenshot: () => ipcRenderer.invoke('window:capture-screenshot'),
   showNotification: (title, body) => ipcRenderer.invoke('reading-reminder:notify', title, body),

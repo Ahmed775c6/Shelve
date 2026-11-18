@@ -1,0 +1,53 @@
+.reader {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 1.5rem;
+  touch-action: pan-y;
+}
+
+.fitToPage {
+  padding: 1rem;
+}
+
+.turnBook {
+  position: relative;
+  flex: none;
+  margin: auto;
+  cursor: grab;
+  touch-action: none;
+}
+
+.turnBook:active {
+  cursor: grabbing;
+}
+
+.pdfTurnPage {
+  position: relative;
+  overflow: hidden;
+  background: #fffefa;
+  box-shadow: 0 0 0 1px rgba(47, 37, 22, 0.1);
+}
+
+.pdfPage {
+  background: #fffefa;
+}
+
+.message {
+  position: absolute;
+  z-index: 20;
+  inset: 0;
+  display: flex;
+  min-height: 12rem;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  color: #9b9890;
+  pointer-events: none;
+  text-align: center;
+}
